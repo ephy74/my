@@ -3,95 +3,259 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Modern Web Chat</title>
-  <!-- Tailwind CSS for modern styling -->
+  <title>Social Chat Platform</title>
   <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
-  <!-- Supabase JS Client -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
-<body class="bg-slate-900 text-slate-100 h-screen flex flex-col justify-between font-sans">
+<body class="bg-slate-900 text-slate-100 h-screen flex justify-center items-center font-sans">
 
-  <!-- Chat Header -->
-  <header class="bg-slate-800 p-4 shadow-md flex justify-between items-center border-b border-slate-700">
-    <h1 class="text-xl font-bold tracking-wide text-indigo-400">⚡ LiveChat</h1>
-    <input id="username" type="text" value="User Guest" class="bg-slate-700 border border-slate-600 rounded px-3 py-1 text-sm focus:outline-none focus:border-indigo-500 w-36">
-  </header>
-
-  <!-- Messages Box -->
-  <main id="chat-box" class="flex-1 p-4 overflow-y-auto space-y-3 max-w-4xl mx-auto w-full">
-    <!-- Messages will dynamically appear here -->
-  </main>
-
-  <!-- Input Footer -->
-  <footer class="bg-slate-800 p-4 border-t border-slate-700 max-w-4xl mx-auto w-full rounded-t-xl shadow-lg">
-    <form id="chat-form" class="flex gap-2">
-      <input id="message-input" type="text" placeholder="Type a message..." autocomplete="off" class="flex-1 bg-slate-700 border border-slate-600 rounded-lg px-4 py-2 focus:outline-none focus:border-indigo-500">
-      <button type="submit" class="bg-indigo-600 hover:bg-indigo-500 text-white font-medium px-5 py-2 rounded-lg transition shadow-md">Send</button>
+  <div id="auth-view" class="w-full max-w-md bg-slate-800 p-8 rounded-2xl shadow-xl border border-slate-700 hidden">
+    <h2 id="auth-title" class="text-2xl font-bold text-center text-indigo-400 mb-6">Create Account</h2>
+    
+    <form id="auth-form" class="space-y-4">
+      <div>
+        <label class="block text-xs uppercase font-semibold text-slate-400 mb-1">Email Address</label>
+        <input id="auth-email" type="email" required class="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2 focus:outline-none focus:border-indigo-500">
+      </div>
+      <div>
+        <label class="block text-xs uppercase font-semibold text-slate-400 mb-1">Password</label>
+        <input id="auth-password" type="password" required class="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2 focus:outline-none focus:border-indigo-500">
+      </div>
+      <button type="submit" id="auth-submit-btn" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-medium py-2 rounded-lg transition shadow-md">Sign Up</button>
     </form>
-  </footer>
+    
+    <p class="text-sm text-center text-slate-400 mt-4">
+      <span id="auth-toggle-text">Already have an account?</span> 
+      <button id="auth-toggle-btn" class="text-indigo-400 underline font-medium ml-1 focus:outline-none">Log In</button>
+    </p>
+  </div>
+
+  <div id="app-view" class="w-full h-full flex hidden">
+    
+    <aside class="w-80 bg-slate-800 border-r border-slate-700 flex flex-col">
+      <div class="p-4 border-b border-slate-700 flex items-center justify-between">
+        <div>
+          <p class="text-xs text-slate-400">Logged in as:</p>
+          <h3 id="current-user-display" class="font-bold text-indigo-400 truncate max-w-[140px]">...</h3>
+        </div>
+        <button id="logout-btn" class="text-xs bg-slate-700 hover:bg-rose-600 px-2 py-1 rounded transition">Logout</button>
+      </div>
+
+      <div class="p-4 border-b border-slate-700">
+        <input id="search-input" type="text" placeholder="Search users by name..." class="w-full text-sm bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-500">
+      </div>
+
+      <div id="users-list" class="flex-1 overflow-y-auto p-2 space-y-1">
+        <p class="text-xs text-slate-500 text-center mt-4">Type a name above to find friends</p>
+      </div>
+    </aside>
+
+    <main class="flex-1 flex flex-col justify-between bg-slate-900">
+      <header class="bg-slate-800/50 p-4 border-b border-slate-700 flex items-center shadow-sm">
+        <h2 id="active-chat-partner" class="font-bold text-lg text-slate-200">Select a friend to chat</h2>
+      </header>
+
+      <div id="chat-box" class="flex-1 p-6 overflow-y-auto space-y-3">
+        <div class="text-center text-slate-500 mt-10 text-sm">No active conversation.</div>
+      </div>
+
+      <footer class="p-4 bg-slate-800/40 border-t border-slate-700">
+        <form id="chat-form" class="flex gap-2 max-w-5xl mx-auto">
+          <input id="message-input" type="text" disabled placeholder="Select a friend first..." autocomplete="off" class="flex-1 bg-slate-700 border border-slate-600 rounded-xl px-4 py-3 focus:outline-none focus:border-indigo-500 disabled:opacity-50">
+          <button type="submit" id="send-btn" disabled class="bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-700 text-white font-medium px-6 py-3 rounded-xl transition shadow-md">Send</button>
+        </form>
+      </footer>
+    </main>
+  </div>
 
   <script>
-    // REPLACE THESE with your actual Supabase credentials from settings
+    // Config: Paste your unique credentials here
     const SUPABASE_URL = "YOUR_SUPABASE_URL";
     const SUPABASE_KEY = "YOUR_SUPABASE_ANON_KEY";
-    
     const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
+    // State Variables
+    let currentUser = null;
+    let activePartnerId = null;
+    let isSignUpMode = true;
+    let activeChannel = null;
+
+    // DOM Elements
+    const authView = document.getElementById('auth-view');
+    const appView = document.getElementById('app-view');
+    const authForm = document.getElementById('auth-form');
+    const authEmail = document.getElementById('auth-email');
+    const authPassword = document.getElementById('auth-password');
+    const authTitle = document.getElementById('auth-title');
+    const authSubmitBtn = document.getElementById('auth-submit-btn');
+    const authToggleBtn = document.getElementById('auth-toggle-btn');
+    const authToggleText = document.getElementById('auth-toggle-text');
+    
+    const currentUserDisplay = document.getElementById('current-user-display');
+    const logoutBtn = document.getElementById('logout-btn');
+    const searchInput = document.getElementById('search-input');
+    const usersList = document.getElementById('users-list');
+    const activeChatPartner = document.getElementById('active-chat-partner');
     const chatBox = document.getElementById('chat-box');
     const chatForm = document.getElementById('chat-form');
     const messageInput = document.getElementById('message-input');
-    const usernameInput = document.getElementById('username');
+    const sendBtn = document.getElementById('send-btn');
 
-    // 1. Function to display a single message block cleanly
+    // 1. Setup Auth Tracking
+    supabase.auth.onAuthStateChange((event, session) => {
+      if (session) {
+        currentUser = session.user;
+        authView.classList.add('hidden');
+        appView.classList.remove('hidden');
+        currentUserDisplay.textContent = currentUser.email.split('@')[0];
+        initRealtimeListener();
+      } else {
+        currentUser = null;
+        activePartnerId = null;
+        appView.classList.add('hidden');
+        authView.classList.remove('hidden');
+      }
+    });
+
+    // Toggle between Signup and Login
+    authToggleBtn.addEventListener('click', () => {
+      isSignUpMode = !isSignUpMode;
+      authTitle.textContent = isSignUpMode ? "Create Account" : "Welcome Back";
+      authSubmitBtn.textContent = isSignUpMode ? "Sign Up" : "Log In";
+      authToggleText.textContent = isSignUpMode ? "Already have an account?" : "Need an account?";
+      authToggleBtn.textContent = isSignUpMode ? "Log In" : "Sign Up";
+    });
+
+    // Auth Submission Handler
+    authForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const email = authEmail.value;
+      const password = authPassword.value;
+
+      if (isSignUpMode) {
+        const { error } = await supabase.auth.signUp({ email, password });
+        if (error) alert(error.message);
+        else alert("Account created successfully! Logging you in...");
+      } else {
+        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) alert(error.message);
+      }
+    });
+
+    logoutBtn.addEventListener('click', () => supabase.auth.signOut());
+
+    // 2. Search Engine Logic
+    async function searchFriends(searchTerm) {
+      if (!searchTerm.trim()) {
+        usersList.innerHTML = `<p class="text-xs text-slate-500 text-center mt-4">Type a name above to find friends</p>`;
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .ilike('username', `%${searchTerm}%`)
+        .neq('id', currentUser.id); // Hide yourself from search results
+
+      usersList.innerHTML = '';
+      if (data && data.length > 0) {
+        data.forEach(profile => {
+          const btn = document.createElement('button');
+          btn.className = `w-full text-left p-3 rounded-xl transition flex items-center gap-3 hover:bg-slate-700/50 ${activePartnerId === profile.id ? 'bg-indigo-600/30 text-indigo-300' : ''}`;
+          btn.innerHTML = `
+            <div class="w-8 h-8 rounded-full bg-slate-600 flex items-center justify-center font-bold uppercase text-xs text-white">${profile.username[0]}</div>
+            <span class="font-medium text-sm truncate">${profile.username}</span>
+          `;
+          btn.onclick = () => selectFriend(profile);
+          usersList.appendChild(btn);
+        });
+      } else {
+        usersList.innerHTML = `<p class="text-xs text-slate-500 text-center mt-4">No matching friends found</p>`;
+      }
+    }
+
+    searchInput.addEventListener('input', (e) => searchFriends(e.target.value));
+
+    // 3. Switch Conversations
+    async function selectFriend(profile) {
+      activePartnerId = profile.id;
+      activeChatPartner.textContent = `💬 ${profile.username}`;
+      messageInput.removeAttribute('disabled');
+      messageInput.placeholder = `Message ${profile.username}...`;
+      sendBtn.removeAttribute('disabled');
+      
+      // Refresh list to show active visual select state
+      searchFriends(searchInput.value);
+      loadPrivateMessages();
+    }
+
+    // 4. Load Chat Logs
+    async function loadPrivateMessages() {
+      if (!activePartnerId) return;
+
+      const { data, error } = await supabase
+        .from('private_messages')
+        .select('*')
+        .or(`and(sender_id.eq.${currentUser.id},receiver_id.eq.${activePartnerId}),and(sender_id.eq.${activePartnerId},receiver_id.eq.${currentUser.id})`)
+        .order('id', { ascending: true });
+
+      chatBox.innerHTML = '';
+      if (data && data.length > 0) {
+        data.forEach(appendMessage);
+      } else {
+        chatBox.innerHTML = `<div class="text-center text-slate-500 mt-10 text-sm">This is the start of your secure chat history.</div>`;
+      }
+    }
+
     function appendMessage(msg) {
-      const isMe = usernameInput.value === msg.username;
+      const isMe = msg.sender_id === currentUser.id;
       const msgDiv = document.createElement('div');
       msgDiv.className = `flex flex-col ${isMe ? 'items-end' : 'items-start'}`;
       
       msgDiv.innerHTML = `
-        <span class="text-xs text-slate-400 mb-0.5">${msg.username}</span>
-        <div class="max-w-[75%] px-4 py-2 rounded-2xl text-sm ${isMe ? 'bg-indigo-600 text-white rounded-tr-none' : 'bg-slate-700 text-slate-100 rounded-tl-none'}">
+        <div class="max-w-[70%] px-4 py-2.5 rounded-2xl text-sm ${isMe ? 'bg-indigo-600 text-white rounded-tr-none' : 'bg-slate-700 text-slate-100 rounded-tl-none'}">
           ${msg.content}
         </div>
       `;
       chatBox.appendChild(msgDiv);
-      chatBox.scrollTop = chatBox.scrollHeight; // Auto scroll to bottom
+      chatBox.scrollTop = chatBox.scrollHeight;
     }
 
-    // 2. Load past messages on startup
-    async function loadMessages() {
-      const { data, error } = await supabase
-        .from('messages')
-        .select('*')
-        .order('id', { ascending: true })
-        .limit(50);
-      
-      if (data) data.forEach(appendMessage);
-    }
-
-    // 3. Send message to database
+    // 5. Transmission Logic
     chatForm.addEventListener('submit', async (e) => {
       e.preventDefault();
       const text = messageInput.value.trim();
-      if (!text) return;
+      if (!text || !activePartnerId) return;
 
       messageInput.value = '';
 
-      await supabase.from('messages').insert([
-        { username: usernameInput.value || 'Anonymous', content: text }
-      ]);
+      const { error } = await supabase
+        .from('private_messages')
+        .insert([{ sender_id: currentUser.id, receiver_id: activePartnerId, content: text }]);
+        
+      if (error) alert("Message failed to send: " + error.message);
     });
 
-    // 4. Listen to Realtime updates (This acts like WebSockets)
-    supabase
-      .channel('public:messages')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, payload => {
-        appendMessage(payload.new);
-      })
-      .subscribe();
+    // 6. Global WebSockets Engine
+    function initRealtimeListener() {
+      if (activeChannel) return; // Don't create duplicate subscribers
 
-    // Initial setup
-    loadMessages();
+      activeChannel = supabase
+        .channel('db-private-messages')
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'private_messages' }, payload => {
+          const newMsg = payload.new;
+          // Only show the message instantly if it belongs to your current screen chat
+          const relevantToMe = (newMsg.sender_id === currentUser.id && newMsg.receiver_id === activePartnerId) || 
+                             (newMsg.sender_id === activePartnerId && newMsg.receiver_id === currentUser.id);
+          
+          if (relevantToMe) {
+            // Remove the empty conversation placeholder if present
+            if (chatBox.querySelector('.text-slate-500')) chatBox.innerHTML = '';
+            appendMessage(newMsg);
+          }
+        })
+        .subscribe();
+    }
   </script>
 </body>
 </html>

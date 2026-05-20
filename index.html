@@ -9,13 +9,8 @@
 </head>
 <body class="bg-slate-900 text-slate-100 h-screen flex justify-center items-center font-sans">
 
-  <div id="key-warning" class="hidden max-w-md bg-rose-900/80 border border-rose-700 p-6 rounded-xl text-center shadow-lg mx-4">
-    <h3 class="text-xl font-bold mb-2 text-white">⚠️ Configuration Missing</h3>
-    <p class="text-sm text-rose-200">Please make sure your custom Supabase configurations have been properly declared inside your script source file tags.</p>
-  </div>
-
-  <div id="auth-view" class="w-full max-w-md bg-slate-800 p-8 rounded-2xl shadow-xl border border-slate-700 hidden">
-    <h2 id="auth-title" class="text-2xl font-bold text-center text-indigo-400 mb-6">Create Account</h2>
+  <div id="auth-view" class="w-full max-w-md bg-slate-800 p-8 rounded-2xl shadow-xl border border-slate-700">
+    <h2 id="auth-title" class="text-2xl font-bold text-center text-indigo-400 mb-6">Welcome Back</h2>
     <form id="auth-form" class="space-y-4">
       <div>
         <label class="block text-xs uppercase font-semibold text-slate-400 mb-1">Email Address</label>
@@ -25,11 +20,11 @@
         <label class="block text-xs uppercase font-semibold text-slate-400 mb-1">Password</label>
         <input id="auth-password" type="password" required class="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2 focus:outline-none focus:border-indigo-500 text-white">
       </div>
-      <button type="submit" id="auth-submit-btn" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-medium py-2 rounded-lg transition shadow-md">Sign Up</button>
+      <button type="submit" id="auth-submit-btn" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-medium py-2 rounded-lg transition shadow-md cursor-pointer">Log In</button>
     </form>
     <p class="text-sm text-center text-slate-400 mt-4">
-      <span id="auth-toggle-text">Already have an account?</span> 
-      <button id="auth-toggle-btn" class="text-indigo-400 underline font-medium ml-1 focus:outline-none cursor-pointer">Log In</button>
+      <span id="auth-toggle-text">Need an account?</span> 
+      <button id="auth-toggle-btn" class="text-indigo-400 underline font-medium ml-1 focus:outline-none cursor-pointer">Sign Up</button>
     </p>
   </div>
 
@@ -67,193 +62,195 @@
   </div>
 
   <script>
-    // Live Setup Credentials
     const SUPABASE_URL = "https://tkklahpgzjlektpvukbj.supabase.co";
     const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRra2xhaHBnempsZWt0cHZ1a2JqIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3OTMwMDY3MCwiZXhwIjoyMDk0ODc2NjcwfQ.Y3D5K0lKpkvNnqQPg8qcigv7GUj7gA979z8VEYwXkF8";
 
-    // Direct Bootloader Execution
-    if (SUPABASE_URL.includes("your-actual-project-id") || SUPABASE_KEY.includes("your-actual-anon-key")) {
-      document.getElementById('key-warning').classList.remove('hidden');
-    } else {
-      initializeChatApp();
+    // Initialize client connection
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    let currentUser = null;
+    let activePartnerId = null;
+    let isSignUpMode = false; // Starts in login layout mode
+    let activeChannel = null;
+
+    // Element bindings
+    const authView = document.getElementById('auth-view');
+    const appView = document.getElementById('app-view');
+    const authForm = document.getElementById('auth-form');
+    const authEmail = document.getElementById('auth-email');
+    const authPassword = document.getElementById('auth-password');
+    const authTitle = document.getElementById('auth-title');
+    const authSubmitBtn = document.getElementById('auth-submit-btn');
+    const authToggleBtn = document.getElementById('auth-toggle-btn');
+    const authToggleText = document.getElementById('auth-toggle-text');
+    
+    const currentUserDisplay = document.getElementById('current-user-display');
+    const logoutBtn = document.getElementById('logout-btn');
+    const searchInput = document.getElementById('search-input');
+    const usersList = document.getElementById('users-list');
+    const activeChatPartner = document.getElementById('active-chat-partner');
+    const chatBox = document.getElementById('chat-box');
+    const chatForm = document.getElementById('chat-form');
+    const messageInput = document.getElementById('message-input');
+    const sendBtn = document.getElementById('send-btn');
+
+    // Manage authentication state shifts
+    supabaseClient.auth.onAuthStateChange((event, session) => {
+      if (session) {
+        currentUser = session.user;
+        authView.classList.add('hidden');
+        appView.classList.remove('hidden');
+        currentUserDisplay.textContent = currentUser.email.split('@')[0];
+        initRealtimeListener();
+      } else {
+        currentUser = null;
+        activePartnerId = null;
+        appView.classList.add('hidden');
+        authView.classList.remove('hidden');
+      }
+    });
+
+    // Toggle between login and registration layouts
+    authToggleBtn.addEventListener('click', () => {
+      isSignUpMode = !isSignUpMode;
+      authTitle.textContent = isSignUpMode ? "Create Account" : "Welcome Back";
+      authSubmitBtn.textContent = isSignUpMode ? "Sign Up" : "Log In";
+      authToggleText.textContent = isSignUpMode ? "Already have an account?" : "Need an account?";
+      authToggleBtn.textContent = isSignUpMode ? "Log In" : "Sign Up";
+    });
+
+    // Form submission processing
+    authForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const email = authEmail.value.trim();
+      const password = authPassword.value;
+
+      if (isSignUpMode) {
+        const { error } = await supabaseClient.auth.signUp({ email, password });
+        if (error) {
+          alert("Sign Up Error: " + error.message);
+        } else {
+          alert("Registration processed! You can now log in.");
+          isSignUpMode = false;
+          authTitle.textContent = "Welcome Back";
+          authSubmitBtn.textContent = "Log In";
+          authToggleText.textContent = "Need an account?";
+          authToggleBtn.textContent = "Sign Up";
+        }
+      } else {
+        // FIXED: Appended correct missing .auth property path definition
+        const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
+        if (error) {
+          alert("Login Error: " + error.message);
+        }
+      }
+    });
+
+    logoutBtn.addEventListener('click', () => supabaseClient.auth.signOut());
+
+    async function searchFriends(searchTerm) {
+      if (!searchTerm.trim()) {
+        usersList.innerHTML = `<p class="text-xs text-slate-500 text-center mt-4">Type a name above to find friends</p>`;
+        return;
+      }
+
+      const { data, error } = await supabaseClient
+        .from('profiles')
+        .select('*')
+        .ilike('username', `%${searchTerm}%`)
+        .neq('id', currentUser.id);
+
+      usersList.innerHTML = '';
+      if (data && data.length > 0) {
+        data.forEach(profile => {
+          const btn = document.createElement('button');
+          btn.className = `w-full text-left p-3 rounded-xl transition flex items-center gap-3 hover:bg-slate-700/50 cursor-pointer ${activePartnerId === profile.id ? 'bg-indigo-600/30 text-indigo-300' : ''}`;
+          btn.innerHTML = `
+            <div class="w-8 h-8 rounded-full bg-slate-600 flex items-center justify-center font-bold uppercase text-xs text-white">${profile.username[0]}</div>
+            <span class="font-medium text-sm truncate">${profile.username}</span>
+          `;
+          btn.onclick = () => selectFriend(profile);
+          usersList.appendChild(btn);
+        });
+      } else {
+        usersList.innerHTML = `<p class="text-xs text-slate-500 text-center mt-4">No matching friends found</p>`;
+      }
     }
 
-    function initializeChatApp() {
-      // FIX: Clean initialization sequence call avoiding circular context crashes
-      const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    searchInput.addEventListener('input', (e) => searchFriends(e.target.value));
 
-      let currentUser = null;
-      let activePartnerId = null;
-      let isSignUpMode = true;
-      let activeChannel = null;
-
-      // Bind Elements
-      const authView = document.getElementById('auth-view');
-      const appView = document.getElementById('app-view');
-      const authForm = document.getElementById('auth-form');
-      const authEmail = document.getElementById('auth-email');
-      const authPassword = document.getElementById('auth-password');
-      const authTitle = document.getElementById('auth-title');
-      const authSubmitBtn = document.getElementById('auth-submit-btn');
-      const authToggleBtn = document.getElementById('auth-toggle-btn');
-      const authToggleText = document.getElementById('auth-toggle-text');
+    async function selectFriend(profile) {
+      activePartnerId = profile.id;
+      activeChatPartner.textContent = `💬 ${profile.username}`;
+      messageInput.removeAttribute('disabled');
+      messageInput.placeholder = `Message ${profile.username}...`;
+      sendBtn.removeAttribute('disabled');
       
-      const currentUserDisplay = document.getElementById('current-user-display');
-      const logoutBtn = document.getElementById('logout-btn');
-      const searchInput = document.getElementById('search-input');
-      const usersList = document.getElementById('users-list');
-      const activeChatPartner = document.getElementById('active-chat-partner');
-      const chatBox = document.getElementById('chat-box');
-      const chatForm = document.getElementById('chat-form');
-      const messageInput = document.getElementById('message-input');
-      const sendBtn = document.getElementById('send-btn');
+      searchFriends(searchInput.value);
+      loadPrivateMessages();
+    }
 
-      // Sync Authentication Lifecycle State
-      supabaseClient.auth.onAuthStateChange((event, session) => {
-        if (session) {
-          currentUser = session.user;
-          authView.classList.add('hidden');
-          appView.classList.remove('hidden');
-          currentUserDisplay.textContent = currentUser.email.split('@')[0];
-          initRealtimeListener();
-        } else {
-          currentUser = null;
-          activePartnerId = null;
-          appView.classList.add('hidden');
-          authView.classList.remove('hidden');
-        }
-      });
+    async function loadPrivateMessages() {
+      if (!activePartnerId) return;
 
-      // Interface toggling functions
-      authToggleBtn.addEventListener('click', () => {
-        isSignUpMode = !isSignUpMode;
-        authTitle.textContent = isSignUpMode ? "Create Account" : "Welcome Back";
-        authSubmitBtn.textContent = isSignUpMode ? "Sign Up" : "Log In";
-        authToggleText.textContent = isSignUpMode ? "Already have an account?" : "Need an account?";
-        authToggleBtn.textContent = isSignUpMode ? "Log In" : "Sign Up";
-      });
+      const { data, error } = await supabaseClient
+        .from('private_messages')
+        .select('*')
+        .or(`and(sender_id.eq.${currentUser.id},receiver_id.eq.${activePartnerId}),and(sender_id.eq.${activePartnerId},receiver_id.eq.${currentUser.id})`)
+        .order('id', { ascending: true });
 
-      authForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const email = authEmail.value;
-        const password = authPassword.value;
-
-        if (isSignUpMode) {
-          const { error } = await supabaseClient.auth.signUp({ email, password });
-          if (error) alert(error.message);
-          else alert("Account registration completed! You can now log in.");
-        } else {
-          const { error } = await supabaseClient.signInWithPassword({ email, password });
-          if (error) alert(error.message);
-        }
-      });
-
-      logoutBtn.addEventListener('click', () => supabaseClient.auth.signOut());
-
-      async function searchFriends(searchTerm) {
-        if (!searchTerm.trim()) {
-          usersList.innerHTML = `<p class="text-xs text-slate-500 text-center mt-4">Type a name above to find friends</p>`;
-          return;
-        }
-
-        const { data, error } = await supabaseClient
-          .from('profiles')
-          .select('*')
-          .ilike('username', `%${searchTerm}%`)
-          .neq('id', currentUser.id);
-
-        usersList.innerHTML = '';
-        if (data && data.length > 0) {
-          data.forEach(profile => {
-            const btn = document.createElement('button');
-            btn.className = `w-full text-left p-3 rounded-xl transition flex items-center gap-3 hover:bg-slate-700/50 cursor-pointer ${activePartnerId === profile.id ? 'bg-indigo-600/30 text-indigo-300' : ''}`;
-            btn.innerHTML = `
-              <div class="w-8 h-8 rounded-full bg-slate-600 flex items-center justify-center font-bold uppercase text-xs text-white">${profile.username[0]}</div>
-              <span class="font-medium text-sm truncate">${profile.username}</span>
-            `;
-            btn.onclick = () => selectFriend(profile);
-            usersList.appendChild(btn);
-          });
-        } else {
-          usersList.innerHTML = `<p class="text-xs text-slate-500 text-center mt-4">No matching friends found</p>`;
-        }
+      chatBox.innerHTML = '';
+      if (data && data.length > 0) {
+        data.forEach(appendMessage);
+      } else {
+        chatBox.innerHTML = `<div class="text-center text-slate-500 mt-10 text-sm">This is the start of your secure chat history.</div>`;
       }
+    }
 
-      searchInput.addEventListener('input', (e) => searchFriends(e.target.value));
+    function appendMessage(msg) {
+      const isMe = msg.sender_id === currentUser.id;
+      const msgDiv = document.createElement('div');
+      msgDiv.className = `flex flex-col ${isMe ? 'items-end' : 'items-start'}`;
+      
+      msgDiv.innerHTML = `
+        <div class="max-w-[70%] px-4 py-2.5 rounded-2xl text-sm ${isMe ? 'bg-indigo-600 text-white rounded-tr-none' : 'bg-slate-700 text-slate-100 rounded-tl-none'}">
+          ${msg.content}
+        </div>
+      `;
+      chatBox.appendChild(msgDiv);
+      chatBox.scrollTop = chatBox.scrollHeight;
+    }
 
-      async function selectFriend(profile) {
-        activePartnerId = profile.id;
-        activeChatPartner.textContent = `💬 ${profile.username}`;
-        messageInput.removeAttribute('disabled');
-        messageInput.placeholder = `Message ${profile.username}...`;
-        sendBtn.removeAttribute('disabled');
+    chatForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const text = messageInput.value.trim();
+      if (!text || !activePartnerId) return;
+
+      messageInput.value = '';
+
+      const { error } = await supabaseClient
+        .from('private_messages')
+        .insert([{ sender_id: currentUser.id, receiver_id: activePartnerId, content: text }]);
         
-        searchFriends(searchInput.value);
-        loadPrivateMessages();
-      }
+      if (error) alert("Message failed to send: " + error.message);
+    });
 
-      async function loadPrivateMessages() {
-        if (!activePartnerId) return;
+    function initRealtimeListener() {
+      if (activeChannel) return;
 
-        const { data, error } = await supabaseClient
-          .from('private_messages')
-          .select('*')
-          .or(`and(sender_id.eq.${currentUser.id},receiver_id.eq.${activePartnerId}),and(sender_id.eq.${activePartnerId},receiver_id.eq.${currentUser.id})`)
-          .order('id', { ascending: true });
-
-        chatBox.innerHTML = '';
-        if (data && data.length > 0) {
-          data.forEach(appendMessage);
-        } else {
-          chatBox.innerHTML = `<div class="text-center text-slate-500 mt-10 text-sm">This is the start of your secure chat history.</div>`;
-        }
-      }
-
-      function appendMessage(msg) {
-        const isMe = msg.sender_id === currentUser.id;
-        const msgDiv = document.createElement('div');
-        msgDiv.className = `flex flex-col ${isMe ? 'items-end' : 'items-start'}`;
-        
-        msgDiv.innerHTML = `
-          <div class="max-w-[70%] px-4 py-2.5 rounded-2xl text-sm ${isMe ? 'bg-indigo-600 text-white rounded-tr-none' : 'bg-slate-700 text-slate-100 rounded-tl-none'}">
-            ${msg.content}
-          </div>
-        `;
-        chatBox.appendChild(msgDiv);
-        chatBox.scrollTop = chatBox.scrollHeight;
-      }
-
-      chatForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const text = messageInput.value.trim();
-        if (!text || !activePartnerId) return;
-
-        messageInput.value = '';
-
-        const { error } = await supabaseClient
-          .from('private_messages')
-          .insert([{ sender_id: currentUser.id, receiver_id: activePartnerId, content: text }]);
+      activeChannel = supabaseClient
+        .channel('db-private-messages')
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'private_messages' }, payload => {
+          const newMsg = payload.new;
+          const relevantToMe = (newMsg.sender_id === currentUser.id && newMsg.receiver_id === activePartnerId) || 
+                             (newMsg.sender_id === activePartnerId && newMsg.receiver_id === currentUser.id);
           
-        if (error) alert("Message failed to send: " + error.message);
-      });
-
-      function initRealtimeListener() {
-        if (activeChannel) return;
-
-        activeChannel = supabaseClient
-          .channel('db-private-messages')
-          .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'private_messages' }, payload => {
-            const newMsg = payload.new;
-            const relevantToMe = (newMsg.sender_id === currentUser.id && newMsg.receiver_id === activePartnerId) || 
-                               (newMsg.sender_id === activePartnerId && newMsg.receiver_id === currentUser.id);
-            
-            if (relevantToMe) {
-              if (chatBox.querySelector('.text-slate-500')) chatBox.innerHTML = '';
-              appendMessage(newMsg);
-            }
-          })
-          .subscribe();
-      }
+          if (relevantToMe) {
+            if (chatBox.querySelector('.text-slate-500')) chatBox.innerHTML = '';
+            appendMessage(newMsg);
+          }
+        })
+        .subscribe();
     }
   </script>
 </body>

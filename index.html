@@ -11,7 +11,7 @@
 
   <div id="key-warning" class="hidden max-w-md bg-rose-900/80 border border-rose-700 p-6 rounded-xl text-center shadow-lg mx-4">
     <h3 class="text-xl font-bold mb-2 text-white">⚠️ Configuration Missing</h3>
-    <p class="text-sm text-rose-200">You must replace the placeholder values on lines 75 & 76 inside your <code>index.html</code> file with your actual Supabase Project URL and API Key before pushing to GitHub!</p>
+    <p class="text-sm text-rose-200">Please make sure your custom Supabase configurations have been properly declared inside your script source file tags.</p>
   </div>
 
   <div id="auth-view" class="w-full max-w-md bg-slate-800 p-8 rounded-2xl shadow-xl border border-slate-700 hidden">
@@ -67,23 +67,20 @@
   </div>
 
   <script>
-    // ⚠️ CRITICAL STEP: Put your real Supabase credentials right here!
-    // Your exact, live Supabase URL setup
-const SUPABASE_URL = "https://tkklahpgzjlektpvukbj.supabase.co";
+    // Live Setup Credentials
+    const SUPABASE_URL = "https://tkklahpgzjlektpvukbj.supabase.co";
+    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRra2xhaHBnempsZWt0cHZ1a2JqIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3OTMwMDY3MCwiZXhwIjoyMDk0ODc2NjcwfQ.Y3D5K0lKpkvNnqQPg8qcigv7GUj7gA979z8VEYwXkF8";
 
-// ⚠️ REPLACE THIS STRING BELOW with your actual long "anon public" key from Settings -> API
-const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRra2xhaHBnempsZWt0cHZ1a2JqIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3OTMwMDY3MCwiZXhwIjoyMDk0ODc2NjcwfQ.Y3D5K0lKpkvNnqQPg8qcigv7GUj7gA979z8VEYwXkF8";
-
-    // Dynamic Safe Initialization Check
-    if (SUPABASE_URL === "https://tkklahpgzjlektpvukbj.supabase.co" || SUPABASE_KEY === "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRra2xhaHBnempsZWt0cHZ1a2JqIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3OTMwMDY3MCwiZXhwIjoyMDk0ODc2NjcwfQ.Y3D5K0lKpkvNnqQPg8qcigv7GUj7gA979z8VEYwXkF8") {
+    // Direct Bootloader Execution
+    if (SUPABASE_URL.includes("your-actual-project-id") || SUPABASE_KEY.includes("your-actual-anon-key")) {
       document.getElementById('key-warning').classList.remove('hidden');
     } else {
       initializeChatApp();
     }
 
     function initializeChatApp() {
-      // Create Client Instantiation Safely
-      const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+      // FIX: Clean initialization sequence call avoiding circular context crashes
+      const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
       let currentUser = null;
       let activePartnerId = null;
@@ -112,7 +109,7 @@ const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
       const sendBtn = document.getElementById('send-btn');
 
       // Sync Authentication Lifecycle State
-      supabase.auth.onAuthStateChange((event, session) => {
+      supabaseClient.auth.onAuthStateChange((event, session) => {
         if (session) {
           currentUser = session.user;
           authView.classList.add('hidden');
@@ -133,7 +130,7 @@ const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
         authTitle.textContent = isSignUpMode ? "Create Account" : "Welcome Back";
         authSubmitBtn.textContent = isSignUpMode ? "Sign Up" : "Log In";
         authToggleText.textContent = isSignUpMode ? "Already have an account?" : "Need an account?";
-        authToggleBtn.textContent = isSignUpMode ? "Sign Up" : "Log In";
+        authToggleBtn.textContent = isSignUpMode ? "Log In" : "Sign Up";
       });
 
       authForm.addEventListener('submit', async (e) => {
@@ -142,16 +139,16 @@ const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
         const password = authPassword.value;
 
         if (isSignUpMode) {
-          const { error } = await supabase.auth.signUp({ email, password });
+          const { error } = await supabaseClient.auth.signUp({ email, password });
           if (error) alert(error.message);
-          else alert("Account registration pending! Check email or use logging tools.");
+          else alert("Account registration completed! You can now log in.");
         } else {
-          const { error } = await supabase.auth.signInWithPassword({ email, password });
+          const { error } = await supabaseClient.signInWithPassword({ email, password });
           if (error) alert(error.message);
         }
       });
 
-      logoutBtn.addEventListener('click', () => supabase.auth.signOut());
+      logoutBtn.addEventListener('click', () => supabaseClient.auth.signOut());
 
       async function searchFriends(searchTerm) {
         if (!searchTerm.trim()) {
@@ -159,7 +156,7 @@ const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
           return;
         }
 
-        const { data, error } = await supabase
+        const { data, error } = await supabaseClient
           .from('profiles')
           .select('*')
           .ilike('username', `%${searchTerm}%`)
@@ -198,7 +195,7 @@ const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
       async function loadPrivateMessages() {
         if (!activePartnerId) return;
 
-        const { data, error } = await supabase
+        const { data, error } = await supabaseClient
           .from('private_messages')
           .select('*')
           .or(`and(sender_id.eq.${currentUser.id},receiver_id.eq.${activePartnerId}),and(sender_id.eq.${activePartnerId},receiver_id.eq.${currentUser.id})`)
@@ -233,7 +230,7 @@ const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 
         messageInput.value = '';
 
-        const { error } = await supabase
+        const { error } = await supabaseClient
           .from('private_messages')
           .insert([{ sender_id: currentUser.id, receiver_id: activePartnerId, content: text }]);
           
@@ -243,7 +240,7 @@ const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
       function initRealtimeListener() {
         if (activeChannel) return;
 
-        activeChannel = supabase
+        activeChannel = supabaseClient
           .channel('db-private-messages')
           .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'private_messages' }, payload => {
             const newMsg = payload.new;

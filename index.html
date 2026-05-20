@@ -3,57 +3,54 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Ephy Chat Pro</title>
+  <title>Social Chat Platform Pro</title>
   <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    /* Custom utility for clean mobile scrolling channels */
+    .scrollbar-none::-webkit-scrollbar { display: none; }
+    .scrollbar-none { -ms-overflow-style: none; scrollbar-width: none; }
+  </style>
 </head>
 <body class="bg-slate-900 text-slate-100 h-screen flex justify-center items-center font-sans overflow-hidden">
 
-  <div id="auth-view" class="w-full max-w-md bg-slate-800 p-8 rounded-2xl shadow-xl border border-slate-700">
-    <h2 id="auth-title" class="text-2xl font-bold text-center text-indigo-400 mb-6">Welcome Back</h2>
-    <form id="auth-form" class="space-y-4">
-      <div>
-        <label class="block text-xs uppercase font-semibold text-slate-400 mb-1">Email Address</label>
-        <input id="auth-email" type="email" required class="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2 focus:outline-none focus:border-indigo-500 text-white">
-      </div>
-      <div>
-        <label class="block text-xs uppercase font-semibold text-slate-400 mb-1">Password</label>
-        <input id="auth-password" type="password" required class="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2 focus:outline-none focus:border-indigo-500 text-white">
-      </div>
-      <button type="submit" id="auth-submit-btn" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-medium py-2 rounded-lg transition cursor-pointer">Log In</button>
-    </form>
-    <p class="text-sm text-center text-slate-400 mt-4">
-      <span id="auth-toggle-text">Need an account?</span> 
-      <button id="auth-toggle-btn" class="text-indigo-400 underline font-medium ml-1 focus:outline-none cursor-pointer">Sign Up</button>
-    </p>
-  </div>
-
-  <div id="app-view" class="w-full h-full flex hidden">
-    <aside class="w-85 bg-slate-800 border-r border-slate-700 flex flex-col h-full">
-      <div class="p-4 border-b border-slate-700 flex items-center justify-between gap-2">
-        <div class="flex items-center gap-3 overflow-hidden">
-          <label class="relative cursor-pointer group flex-shrink-0">
-            <div id="user-avatar-placeholder" class="w-10 h-10 rounded-full bg-indigo-600 flex items-center justify-center font-bold uppercase text-sm border-2 border-indigo-400 overflow-hidden">
-              U
+  <div id="app-view" class="w-full h-full flex relative transition-all duration-300">
+    
+    <aside id="sidebar-container" class="w-full md:w-80 bg-slate-800 border-r border-slate-700 flex flex-col h-full flex-shrink-0 absolute md:relative z-20 transition-transform duration-300 translate-x-0">
+      <div class="p-4 border-b border-slate-700 flex flex-col gap-3">
+        <div class="flex items-center justify-between gap-2">
+          <div class="flex items-center gap-3 overflow-hidden">
+            <label class="relative cursor-pointer group flex-shrink-0">
+              <div id="user-avatar-placeholder" class="w-10 h-10 rounded-full bg-indigo-600 flex items-center justify-center font-bold uppercase text-sm border-2 border-indigo-400 overflow-hidden">
+                U
+              </div>
+              <input type="file" id="avatar-file-input" class="hidden" accept="image/*">
+            </label>
+            <div class="truncate">
+              <h3 id="current-user-display" class="font-bold text-indigo-400 text-sm truncate">...</h3>
+              <p class="text-[10px] text-slate-400">Acting Session User</p>
             </div>
-            <input type="file" id="avatar-file-input" class="hidden" accept="image/*">
-            <div class="absolute inset-0 bg-black/60 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition text-[10px] text-white">Edit</div>
-          </label>
-          <div class="truncate">
-            <h3 id="current-user-display" class="font-bold text-indigo-400 text-sm truncate">...</h3>
-            <p class="text-[10px] text-slate-400">Click avatar to upload</p>
           </div>
+          <button id="logout-btn" class="text-xs bg-slate-700 hover:bg-rose-600 px-2.5 py-1.5 rounded-lg transition flex-shrink-0 cursor-pointer">Exit</button>
         </div>
-        <button id="logout-btn" class="text-xs bg-slate-700 hover:bg-rose-600 px-2.5 py-1.5 rounded-lg transition flex-shrink-0 cursor-pointer">Logout</button>
+
+        <div class="bg-slate-900/60 p-2 rounded-lg border border-slate-700/50">
+          <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wide mb-1">🎭 Switch Persona (Test Messaging):</label>
+          <select id="identity-sandbox-selector" class="w-full bg-slate-800 border border-slate-600 rounded px-2 py-1 text-xs text-slate-200 focus:outline-none focus:border-indigo-500">
+            <option value="usr-me">ephrem74 (You)</option>
+            <option value="usr-1">husendawit4</option>
+            <option value="usr-2">alex_designer</option>
+          </select>
+        </div>
       </div>
 
-      <div class="p-3 bg-slate-800/60 border-b border-slate-700 space-y-3">
+      <div class="p-3 bg-slate-800/60 border-b border-slate-700 space-y-2">
         <details class="text-xs text-slate-400 group">
           <summary class="cursor-pointer font-semibold text-indigo-400 select-none hover:text-indigo-300">👥 Create Group Chat</summary>
           <div class="mt-2 space-y-2 pt-1">
             <input id="group-name-input" type="text" placeholder="Group Name..." class="w-full bg-slate-700 border border-slate-600 rounded px-2 py-1 focus:outline-none text-white text-xs">
             <input id="group-members-input" type="text" placeholder="Invite usernames (comma separated)..." class="w-full bg-slate-700 border border-slate-600 rounded px-2 py-1 focus:outline-none text-white text-xs">
-            <button id="create-group-btn" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-medium py-1 rounded text-xs transition cursor-pointer">Create & Add Users</button>
+            <button id="create-group-btn" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-medium py-1 rounded text-xs transition cursor-pointer">Create Group</button>
           </div>
         </details>
 
@@ -61,12 +58,12 @@
           <summary class="cursor-pointer font-semibold text-indigo-400 select-none hover:text-indigo-300">⚙️ Profile Settings</summary>
           <div class="mt-2 space-y-2 pt-1">
             <input id="settings-username-input" type="text" placeholder="Update Display Name..." class="w-full bg-slate-700 border border-slate-600 rounded px-2 py-1 focus:outline-none text-white text-xs">
-            <button id="save-settings-btn" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-medium py-1 rounded text-xs transition cursor-pointer">Save Changes</button>
+            <button id="save-settings-btn" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-medium py-1 rounded text-xs transition cursor-pointer">Save Name</button>
           </div>
         </details>
       </div>
 
-      <div class="p-3 border-b border-slate-700 flex gap-1">
+      <div class="p-3 border-b border-slate-700">
         <input id="search-input" type="text" placeholder="Search friends or groups..." class="w-full text-xs bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-500 text-white">
       </div>
 
@@ -82,7 +79,8 @@
       </div>
     </aside>
 
-    <main class="flex-1 flex flex-col justify-between bg-slate-900 h-full relative">
+    <main id="chat-container" class="flex-1 flex flex-col justify-between bg-slate-900 h-full w-full absolute md:relative z-10 transition-transform duration-300 translate-x-full md:translate-x-0">
+      
       <div class="bg-slate-800/40 border-b border-slate-700/80 p-3 flex items-center gap-3 overflow-x-auto select-none min-h-[75px] scrollbar-none">
         <div id="story-trigger-zone" class="flex flex-col items-center justify-center flex-shrink-0 cursor-pointer group">
           <div class="w-11 h-11 rounded-full bg-slate-700 group-hover:bg-indigo-600 border-2 border-dashed border-indigo-500 flex items-center justify-center transition">
@@ -95,11 +93,14 @@
         <div id="stories-container" class="flex gap-3 items-center"></div>
       </div>
 
-      <header class="bg-slate-800/80 p-4 border-b border-slate-700 flex items-center shadow-sm">
-        <h2 id="active-chat-partner" class="font-bold text-base text-slate-200">Select a room or friend to get started</h2>
+      <header class="bg-slate-800/80 p-4 border-b border-slate-700 flex items-center gap-3 shadow-sm">
+        <button id="mobile-back-btn" class="md:hidden text-xs bg-slate-700 hover:bg-slate-600 text-slate-200 px-3 py-1.5 rounded-lg transition font-medium cursor-pointer">
+          ⬅ Back
+        </button>
+        <h2 id="active-chat-partner" class="font-bold text-sm md:text-base text-slate-200 truncate">Select a channel to get started</h2>
       </header>
 
-      <div id="chat-box" class="flex-1 p-6 overflow-y-auto space-y-3 bg-slate-900/40">
+      <div id="chat-box" class="flex-1 p-4 md:p-6 overflow-y-auto space-y-3 bg-slate-900/40">
         <div class="text-center text-slate-500 mt-10 text-sm">No conversation channel is active.</div>
       </div>
 
@@ -122,52 +123,41 @@
     <div class="relative max-w-lg w-full p-4 flex flex-col items-center">
       <p id="story-modal-user" class="text-indigo-400 font-bold mb-2 text-sm"></p>
       <img id="story-modal-img" src="" class="max-h-[80vh] rounded-lg object-contain shadow-2xl">
-      <p class="text-slate-500 text-xs mt-3">Click anywhere to return to console</p>
+      <p class="text-slate-500 text-xs mt-3">Click anywhere to return to panel</p>
     </div>
   </div>
 
   <script>
-    const SUPABASE_URL = "https://tkklahpgzjlektpvukbj.supabase.co";
-    const SUPABASE_KEY = "sb_publishable_wSX9IFV6P0C8K63zH3jPQw_lVs9KYLd";
-
-    let supabaseClient = null;
-    try {
-      supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-    } catch (e) {
-      console.warn("Client client connection failed initialization, loading fail-safe mode.");
-    }
-
-    let currentUser = null;
+    let currentUser = { id: 'usr-me', username: 'ephrem74', avatar_url: '' };
     let activePartnerId = null;  
     let activeGroupId = null;    
-    let isSignUpMode = false;
     let pendingAttachedFile = null;
-    let onlineUsersMap = {};
 
-    // Mock local memory container if database API configuration is invalid
+    // Local sandbox data mock store container for secure device simulation execution
     let fallbackDataStore = {
       profiles: [
+        { id: 'usr-me', username: 'ephrem74', avatar_url: '' },
         { id: 'usr-1', username: 'husendawit4', avatar_url: '' },
         { id: 'usr-2', username: 'alex_designer', avatar_url: '' }
       ],
       groups: [
-        { id: 'grp-1', name: 'UI Dev Team Workspace', created_by: 'me' }
+        { id: 'grp-1', name: 'UI Dev Team Workspace', created_by: 'usr-me' }
       ],
-      private_messages: [],
+      private_messages: [
+        { id: 101, sender_id: 'usr-1', receiver_id: 'usr-me', content: 'hi', file_url: null },
+        { id: 102, sender_id: 'usr-me', receiver_id: 'usr-1', content: 'hi', file_url: null }
+      ],
       group_messages: [],
-      stories: []
+      stories: [
+        { id: 1, username: 'husendawit4', image_url: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=150' }
+      ]
     };
 
-    // DOM References
-    const authView = document.getElementById('auth-view');
-    const appView = document.getElementById('app-view');
-    const authForm = document.getElementById('auth-form');
-    const authEmail = document.getElementById('auth-email');
-    const authPassword = document.getElementById('auth-password');
-    const authTitle = document.getElementById('auth-title');
-    const authSubmitBtn = document.getElementById('auth-submit-btn');
-    const authToggleBtn = document.getElementById('auth-toggle-btn');
-    const authToggleText = document.getElementById('auth-toggle-text');
+    // DOM Target Bindings
+    const sidebarContainer = document.getElementById('sidebar-container');
+    const chatContainer = document.getElementById('chat-container');
+    const mobileBackBtn = document.getElementById('mobile-back-btn');
+    const identitySandboxSelector = document.getElementById('identity-sandbox-selector');
     
     const currentUserDisplay = document.getElementById('current-user-display');
     const userAvatarPlaceholder = document.getElementById('user-avatar-placeholder');
@@ -196,217 +186,153 @@
     const filePreviewIndicator = document.getElementById('file-preview-indicator');
     const sendBtn = document.getElementById('send-btn');
 
-    // Safe entry point execution loop
-    function initializeAppSystem() {
-      if (supabaseClient) {
-        supabaseClient.auth.onAuthStateChange(async (event, session) => {
-          if (session && session.user) {
-            currentUser = session.user;
-            activateDashboardLayout();
-          } else {
-            loadMockupFallbackSession();
-          }
-        });
-      } else {
-        loadMockupFallbackSession();
-      }
-    }
-
-    function loadMockupFallbackSession() {
-      console.log("Activating direct workspace layout connection mode without API boundaries.");
-      currentUser = { id: 'me-auth-id', email: 'ephy74sol@gmail.com' };
-      activateDashboardLayout();
-    }
-
-    async function activateDashboardLayout() {
-      authView.classList.add('hidden');
-      appView.classList.remove('hidden');
-      
-      let baseName = currentUser.email.split('@')[0];
-      currentUserDisplay.textContent = baseName;
-      settingsUsernameInput.value = baseName;
-
-      if (supabaseClient && !SUPABASE_KEY.startsWith("sb_pub")) {
-        try {
-          const { data: p } = await supabaseClient.from('profiles').select('username').eq('id', currentUser.id).single();
-          if(p?.username) {
-            currentUserDisplay.textContent = p.username;
-            settingsUsernameInput.value = p.username;
-          }
-          loadUserProfileAvatar();
-          initRealtimeSubscribers();
-          initPresenceTracker();
-        } catch(e) { console.log("Database fetch bypassed."); }
-      }
+    // Startup configuration loop initializer
+    function runCoreAppBoot() {
+      // Setup Initial Active User Profile Name State Visuals
+      currentUserDisplay.textContent = currentUser.username;
+      settingsUsernameInput.value = currentUser.username;
+      userAvatarPlaceholder.textContent = currentUser.username[0].toUpperCase();
 
       renderSidebarFeeds();
       loadStoriesFeed();
     }
 
-    authToggleBtn.addEventListener('click', () => {
-      isSignUpMode = !isSignUpMode;
-      authTitle.textContent = isSignUpMode ? "Create Account" : "Welcome Back";
-      authSubmitBtn.textContent = isSignUpMode ? "Sign Up" : "Log In";
-      authToggleText.textContent = isSignUpMode ? "Already have an account?" : "Need an account?";
-      authToggleBtn.textContent = isSignUpMode ? "Log In" : "Sign Up";
-    });
+    // IDENTITY SELECTOR SWAP ENGINE (Fixes Self-Chatting Tracking loop anomalies)
+    identitySandboxSelector.addEventListener('change', (e) => {
+      const chosenId = e.target.value;
+      const targetProfile = fallbackDataStore.profiles.find(p => p.id === chosenId);
+      
+      if (targetProfile) {
+        currentUser = { id: targetProfile.id, username: targetProfile.username, avatar_url: targetProfile.avatar_url };
+        currentUserDisplay.textContent = currentUser.username;
+        settingsUsernameInput.value = currentUser.username;
+        
+        if (currentUser.avatar_url) {
+          userAvatarPlaceholder.innerHTML = `<img src="${currentUser.avatar_url}" class="w-full h-full object-cover">`;
+        } else {
+          userAvatarPlaceholder.innerHTML = currentUser.username[0].toUpperCase();
+        }
 
-    authForm.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      // Bypass any dynamic auth configuration blocking and transition cleanly
-      loadMockupFallbackSession();
-    });
+        // Drop current viewing track to avoid UI leak logic configurations
+        activePartnerId = null;
+        activeGroupId = null;
+        activeChatPartner.textContent = "Select a channel to get started";
+        chatBox.innerHTML = `<div class="text-center text-slate-500 mt-10 text-sm">No conversation channel is active.</div>`;
+        
+        // Disable layout inputs until a channel node selection event happens
+        messageInput.setAttribute('disabled', 'true');
+        chatFileInput.setAttribute('disabled', 'true');
+        sendBtn.setAttribute('disabled', 'true');
+        messageInput.placeholder = "Select a dynamic channel first...";
 
-    logoutBtn.addEventListener('click', () => {
-      authView.classList.remove('hidden');
-      appView.classList.add('hidden');
-    });
-
-    saveSettingsBtn.addEventListener('click', async () => {
-      const newUsername = settingsUsernameInput.value.trim();
-      if (!newUsername) return alert("Username cannot be empty");
-
-      currentUserDisplay.textContent = newUsername;
-      if (supabaseClient && !SUPABASE_KEY.startsWith("sb_pub")) {
-        await supabaseClient.from('profiles').update({ username: newUsername }).eq('id', currentUser.id);
+        renderSidebarFeeds();
+        // Return view on switch adjustments inside responsive device views
+        returnToSidebarView();
       }
-      alert("Profile status metadata updated successfully!");
-      renderSidebarFeeds();
     });
 
-    async function loadUserProfileAvatar() {
-      if (!supabaseClient || SUPABASE_KEY.startsWith("sb_pub")) {
-        userAvatarPlaceholder.textContent = currentUserDisplay.textContent[0].toUpperCase();
-        return;
-      }
-      const { data } = await supabaseClient.from('profiles').select('avatar_url').eq('id', currentUser.id).single();
-      if (data && data.avatar_url) {
-        userAvatarPlaceholder.innerHTML = `<img src="${data.avatar_url}" class="w-full h-full object-cover">`;
-      } else {
-        userAvatarPlaceholder.textContent = currentUserDisplay.textContent[0].toUpperCase();
+    // RESPONSIVE SCREEN VIEW SLIDERS ENGINE
+    function transitionToChatView() {
+      if (window.innerWidth < 768) {
+        sidebarContainer.classList.add('-translate-x-full');
+        chatContainer.classList.remove('translate-x-full');
+        chatContainer.classList.add('translate-x-0');
       }
     }
 
-    avatarFileInput.addEventListener('change', async (e) => {
+    function returnToSidebarView() {
+      if (window.innerWidth < 768) {
+        sidebarContainer.classList.remove('-translate-x-full');
+        sidebarContainer.classList.add('translate-x-0');
+        chatContainer.classList.remove('translate-x-0');
+        chatContainer.classList.add('translate-x-full');
+      }
+    }
+
+    mobileBackBtn.addEventListener('click', returnToSidebarView);
+
+    // SIDEBAR FEEDS RENDER ENGINE
+    function renderSidebarFeeds() {
+      const term = searchInput.value.trim().toLowerCase();
+      usersList.innerHTML = '';
+      groupsList.innerHTML = '';
+
+      // Filter out current active session profile node to avoid explicit internal loop self-chat arrays
+      fallbackDataStore.profiles.forEach(p => {
+        if (p.id === currentUser.id) return;
+        if (term && !p.username.toLowerCase().includes(term)) return;
+
+        const btn = document.createElement('button');
+        btn.className = `w-full text-left p-2.5 rounded-xl transition flex items-center justify-between hover:bg-slate-700/40 cursor-pointer ${activePartnerId === p.id ? 'bg-indigo-600/30 text-indigo-300' : ''}`;
+        
+        const imgHTML = p.avatar_url ? `<img src="${p.avatar_url}" class="w-7 h-7 rounded-full object-cover">` : `<div class="w-7 h-7 rounded-full bg-slate-600 flex items-center justify-center text-xs font-bold uppercase">${p.username[0]}</div>`;
+        
+        btn.innerHTML = `
+          <div class="flex items-center gap-3 overflow-hidden">
+            ${imgHTML}
+            <span class="font-medium text-xs truncate">${p.username}</span>
+          </div>
+          <span class="w-2 h-2 rounded-full bg-green-500 flex-shrink-0 ml-2 shadow-sm"></span>
+        `;
+        btn.onclick = () => selectDirectChat(p);
+        usersList.appendChild(btn);
+      });
+
+      fallbackDataStore.groups.forEach(g => {
+        if (term && !g.name.toLowerCase().includes(term)) return;
+        const btn = document.createElement('button');
+        btn.className = `w-full text-left p-2.5 rounded-xl transition flex items-center gap-3 hover:bg-slate-700/40 cursor-pointer ${activeGroupId === g.id ? 'bg-emerald-600/30 text-emerald-300' : ''}`;
+        btn.innerHTML = `<div class="w-7 h-7 rounded-full bg-emerald-700 flex items-center justify-center text-xs font-bold">#</div><span class="font-medium text-xs truncate">${g.name}</span>`;
+        btn.onclick = () => selectGroupChat(g);
+        groupsList.appendChild(btn);
+      });
+    }
+
+    searchInput.addEventListener('input', renderSidebarFeeds);
+
+    // ACCOUNT META HANDLING PROFILE UPDATES
+    saveSettingsBtn.addEventListener('click', () => {
+      const newUsername = settingsUsernameInput.value.trim();
+      if (!newUsername) return alert("Username cannot be empty");
+
+      currentUser.username = newUsername;
+      currentUserDisplay.textContent = newUsername;
+      
+      const profileInStore = fallbackDataStore.profiles.find(p => p.id === currentUser.id);
+      if (profileInStore) profileInStore.username = newUsername;
+
+      // Also adjust selection tool configuration nodes matching the setup
+      const selectionOption = identitySandboxSelector.querySelector(`option[value="${currentUser.id}"]`);
+      if (selectionOption) selectionOption.textContent = `${newUsername} ${currentUser.id === 'usr-me' ? '(You)' : ''}`;
+
+      alert("Display settings saved!");
+      renderSidebarFeeds();
+    });
+
+    avatarFileInput.addEventListener('change', (e) => {
       const file = e.target.files[0];
       if (!file) return;
       
       const reader = new FileReader();
       reader.onload = function(event) {
         userAvatarPlaceholder.innerHTML = `<img src="${event.target.result}" class="w-full h-full object-cover">`;
+        currentUser.avatar_url = event.target.result;
+        const pStore = fallbackDataStore.profiles.find(p => p.id === currentUser.id);
+        if (pStore) pStore.avatar_url = event.target.result;
+        renderSidebarFeeds();
       };
       reader.readAsDataURL(file);
     });
 
-    function initPresenceTracker() {
-      if (!supabaseClient || SUPABASE_KEY.startsWith("sb_pub")) return;
-      const presenceChannel = supabaseClient.channel('presence-global', { config: { presence: { key: currentUser.id } } });
-      presenceChannel
-        .on('presence', { event: 'sync' }, () => {
-          const state = presenceChannel.presenceState();
-          onlineUsersMap = {};
-          Object.keys(state).forEach(id => { onlineUsersMap[id] = true; });
-          updateUsersListPresenceIndicators();
-        })
-        .subscribe(async (status) => {
-          if (status === 'SUBSCRIBED') { await presenceChannel.track({ online_at: new Date().toISOString() }); }
-        });
-    }
-
-    function updateUsersListPresenceIndicators() {
-      const rows = usersList.querySelectorAll('[data-user-id]');
-      rows.forEach(row => {
-        const userId = row.getAttribute('data-user-id');
-        const dot = row.querySelector('.presence-dot');
-        if (dot) {
-          if (onlineUsersMap[userId] || userId === 'usr-1') {
-            dot.className = "presence-dot w-2 h-2 rounded-full bg-green-500 flex-shrink-0 ml-2 shadow-sm";
-          } else {
-            dot.className = "presence-dot w-2 h-2 rounded-full bg-slate-600 flex-shrink-0 ml-2 shadow-sm";
-          }
-        }
-      });
-    }
-
-    async function renderSidebarFeeds() {
-      const term = searchInput.value.trim().toLowerCase();
-      usersList.innerHTML = '';
-      groupsList.innerHTML = '';
-
-      let targetUsers = fallbackDataStore.profiles;
-      if (supabaseClient && !SUPABASE_KEY.startsWith("sb_pub")) {
-        const { data } = await supabaseClient.from('profiles').select('*').neq('id', currentUser.id);
-        if (data && data.length > 0) targetUsers = data;
-      }
-
-      targetUsers.forEach(p => {
-        const displayUsername = p.username || "User Channel";
-        if (term && !displayUsername.toLowerCase().includes(term)) return;
-
-        const btn = document.createElement('button');
-        btn.setAttribute('data-user-id', p.id);
-        btn.className = `w-full text-left p-2 rounded-xl transition flex items-center justify-between hover:bg-slate-700/40 cursor-pointer ${activePartnerId === p.id ? 'bg-indigo-600/30 text-indigo-300' : ''}`;
-        
-        const imgHTML = p.avatar_url ? `<img src="${p.avatar_url}" class="w-7 h-7 rounded-full object-cover">` : `<div class="w-7 h-7 rounded-full bg-slate-600 flex items-center justify-center text-xs font-bold uppercase">${displayUsername[0]}</div>`;
-        
-        btn.innerHTML = `
-          <div class="flex items-center gap-3 overflow-hidden">
-            ${imgHTML}
-            <span class="font-medium text-xs truncate">${displayUsername}</span>
-          </div>
-          <span class="presence-dot w-2 h-2 rounded-full bg-green-500 flex-shrink-0 ml-2 shadow-sm"></span>
-        `;
-        btn.onclick = () => selectDirectChat(p);
-        usersList.appendChild(btn);
-      });
-
-      let targetGroups = fallbackDataStore.groups;
-      if (supabaseClient && !SUPABASE_KEY.startsWith("sb_pub")) {
-        const { data } = await supabaseClient.from('groups').select('*');
-        if (data && data.length > 0) targetGroups = data;
-      }
-
-      targetGroups.forEach(g => {
-        if (term && !g.name.toLowerCase().includes(term)) return;
-        const btn = document.createElement('button');
-        btn.className = `w-full text-left p-2 rounded-xl transition flex items-center gap-3 hover:bg-slate-700/40 cursor-pointer ${activeGroupId === g.id ? 'bg-emerald-600/30 text-emerald-300' : ''}`;
-        btn.innerHTML = `<div class="w-7 h-7 rounded-full bg-emerald-700 flex items-center justify-center text-xs font-bold">#</div><span class="font-medium text-xs truncate">${g.name}</span>`;
-        btn.onclick = () => selectGroupChat(g);
-        groupsList.appendChild(btn);
-      });
-      
-      updateUsersListPresenceIndicators();
-    }
-
-    searchInput.addEventListener('input', renderSidebarFeeds);
-
-    createGroupBtn.addEventListener('click', async () => {
-      const name = groupNameInput.value.trim();
-      const rawMembers = groupMembersInput.value.trim();
-      if (!name) return alert("Please specify a group room name!");
-
-      const newGroupObj = { id: 'grp-' + Date.now(), name: name, created_by: currentUser.id };
-      fallbackDataStore.groups.push(newGroupObj);
-
-      if (supabaseClient && !SUPABASE_KEY.startsWith("sb_pub")) {
-        try {
-          await supabaseClient.from('groups').insert([newGroupObj]);
-        } catch(e) {}
-      }
-      
-      groupNameInput.value = '';
-      groupMembersInput.value = '';
-      alert(`Group "${name}" built successfully with invited target members!`);
-      renderSidebarFeeds();
-    });
-
+    // CHANNELS DISPATCH ENGINE
     function selectDirectChat(profile) {
       activeGroupId = null;
       activePartnerId = profile.id;
-      const displayName = profile.username;
-      activeChatPartner.textContent = `💬 ${displayName}`;
-      enableInputs(`Message ${displayName}...`);
+      activeChatPartner.textContent = `💬 ${profile.username}`;
+      enableInputs(`Message ${profile.username}...`);
       loadActiveMessages();
+      transitionToChatView();
+      renderSidebarFeeds();
     }
 
     function selectGroupChat(group) {
@@ -415,6 +341,8 @@
       activeChatPartner.textContent = `👥 Group: ${group.name}`;
       enableInputs(`Message group workspace...`);
       loadActiveMessages();
+      transitionToChatView();
+      renderSidebarFeeds();
     }
 
     function enableInputs(placeholderText) {
@@ -424,7 +352,8 @@
       messageInput.placeholder = placeholderText;
     }
 
-    async function loadActiveMessages() {
+    // MESSAGES LOGIC FEED HANDLERS
+    function loadActiveMessages() {
       chatBox.innerHTML = '';
       let records = [];
 
@@ -433,24 +362,16 @@
           (m.sender_id === currentUser.id && m.receiver_id === activePartnerId) ||
           (m.sender_id === activePartnerId && m.receiver_id === currentUser.id)
         );
-        
-        if (supabaseClient && !SUPABASE_KEY.startsWith("sb_pub")) {
-          const { data } = await supabaseClient.from('private_messages').select('*').order('id', { ascending: true });
-          if(data) records = data;
-        }
       } else if (activeGroupId) {
         records = fallbackDataStore.group_messages.filter(m => m.group_id === activeGroupId);
-        if (supabaseClient && !SUPABASE_KEY.startsWith("sb_pub")) {
-          const { data } = await supabaseClient.from('group_messages').select('*').eq('group_id', activeGroupId);
-          if(data) records = data;
-        }
       }
 
       if (records.length > 0) {
         records.forEach(appendMessageRow);
       } else {
-        chatBox.innerHTML = `<div class="text-center text-slate-500 mt-10 text-sm">No previous messages found. Say Hello!</div>`;
+        chatBox.innerHTML = `<div class="text-center text-slate-500 mt-10 text-xs">No previous tracking history records found here. Say Hello!</div>`;
       }
+      chatBox.scrollTop = chatBox.scrollHeight;
     }
 
     function appendMessageRow(msg) {
@@ -463,8 +384,18 @@
         mediaPayload = `<img src="${msg.file_url}" class="max-w-xs max-h-48 rounded-lg mb-1 mt-1 object-cover border border-slate-600 block">`;
       }
 
+      // Identify nickname tag layout inside direct loops
+      let identityTag = '';
+      if (!isMe) {
+        const senderProfile = fallbackDataStore.profiles.find(p => p.id === msg.sender_id);
+        if (senderProfile) {
+          identityTag = `<span class="block text-[10px] text-slate-400 font-semibold mb-0.5 px-1">${senderProfile.username}</span>`;
+        }
+      }
+
       row.innerHTML = `
-        <div class="max-w-[70%] px-4 py-2 my-1 rounded-2xl text-xs shadow-sm ${isMe ? 'bg-indigo-600 text-white rounded-tr-none' : 'bg-slate-700 text-slate-100 rounded-tl-none'}">
+        ${identityTag}
+        <div class="max-w-[85%] md:max-w-[70%] px-4 py-2 my-0.5 rounded-2xl text-xs shadow-sm ${isMe ? 'bg-indigo-600 text-white rounded-tr-none' : 'bg-slate-700 text-slate-100 rounded-tl-none'}">
           ${msg.content ? `<div>${msg.content}</div>` : ''}
           ${mediaPayload}
         </div>
@@ -473,24 +404,25 @@
       chatBox.scrollTop = chatBox.scrollHeight;
     }
 
+    // FORM SUBMISSIONS WITH ATTACHMENT CONFIGS
     chatFileInput.addEventListener('change', (e) => {
       pendingAttachedFile = e.target.files[0];
       if (pendingAttachedFile) {
-        filePreviewIndicator.textContent = `📎 Ready to send: ${pendingAttachedFile.name}`;
+        filePreviewIndicator.textContent = `📎 Ready to attach: ${pendingAttachedFile.name}`;
         filePreviewIndicator.classList.remove('hidden');
       }
     });
 
-    chatForm.addEventListener('submit', async (e) => {
+    chatForm.addEventListener('submit', (e) => {
       e.preventDefault();
       const text = messageInput.value.trim();
       if (!text && !pendingAttachedFile) return;
 
       messageInput.value = '';
-      let mockUrl = null;
+      let fileDataUrl = null;
 
       if (pendingAttachedFile) {
-        mockUrl = URL.createObjectURL(pendingAttachedFile);
+        fileDataUrl = URL.createObjectURL(pendingAttachedFile);
         filePreviewIndicator.classList.add('hidden');
         pendingAttachedFile = null;
       }
@@ -499,8 +431,7 @@
         id: Date.now(),
         sender_id: currentUser.id,
         content: text,
-        file_url: mockUrl,
-        file_type: mockUrl ? 'image/png' : null
+        file_url: fileDataUrl
       };
 
       if (activePartnerId) {
@@ -511,21 +442,16 @@
         fallbackDataStore.group_messages.push(msgObj);
       }
 
-      if(chatBox.querySelector('.text-center')) chatBox.innerHTML = '';
+      if (chatBox.querySelector('.text-center')) chatBox.innerHTML = '';
       appendMessageRow(msgObj);
     });
 
+    // PHOTO STORIES PANEL CONFIGURATION 
     storyTriggerZone.addEventListener('click', () => { storyFileInput.click(); });
 
-    async function loadStoriesFeed() {
+    function loadStoriesFeed() {
       storiesContainer.innerHTML = '';
-      let data = fallbackDataStore.stories;
-
-      if (data.length === 0) {
-        data = [{ id: 1, username: 'husendawit4', image_url: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=150' }];
-      }
-
-      data.forEach(story => {
+      fallbackDataStore.stories.forEach(story => {
         const block = document.createElement('div');
         block.className = 'flex flex-col items-center flex-shrink-0 cursor-pointer text-center';
         block.innerHTML = `
@@ -539,20 +465,22 @@
       });
     }
 
-    storyFileInput.addEventListener('change', async (e) => {
+    storyFileInput.addEventListener('change', (e) => {
       const file = e.target.files[0];
       if (!file) return;
 
-      const localUrl = URL.createObjectURL(file);
-      const newStory = {
-        id: Date.now(),
-        user_id: currentUser.id,
-        username: currentUserDisplay.textContent,
-        image_url: localUrl
+      const reader = new FileReader();
+      reader.onload = function(event) {
+        const newStory = {
+          id: Date.now(),
+          user_id: currentUser.id,
+          username: currentUser.username,
+          image_url: event.target.result
+        };
+        fallbackDataStore.stories.push(newStory);
+        loadStoriesFeed();
       };
-
-      fallbackDataStore.stories.push(newStory);
-      loadStoriesFeed();
+      reader.readAsDataURL(file);
     });
 
     function openStoryModal(story) {
@@ -565,28 +493,26 @@
       document.getElementById('story-modal').classList.add('hidden');
     }
 
-    function initRealtimeSubscribers() {
-      if (!supabaseClient || SUPABASE_KEY.startsWith("sb_pub")) return;
-      supabaseClient.channel('global-chat-sync')
-        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'private_messages' }, payload => {
-          const m = payload.new;
-          if ((m.sender_id === currentUser.id && m.receiver_id === activePartnerId) || (m.sender_id === activePartnerId && m.receiver_id === currentUser.id)) {
-            if(chatBox.querySelector('.text-center')) chatBox.innerHTML = '';
-            appendMessageRow(m);
-          }
-        })
-        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'group_messages' }, payload => {
-          const m = payload.new;
-          if (activeGroupId && m.group_id == activeGroupId) {
-            if(chatBox.querySelector('.text-center')) chatBox.innerHTML = '';
-            appendMessageRow(m);
-          }
-        })
-        .subscribe();
-    }
+    createGroupBtn.addEventListener('click', () => {
+      const name = groupNameInput.value.trim();
+      if (!name) return alert("Please specify a group room name!");
 
-    // Run core lifecycle script startup checks
-    initializeAppSystem();
+      const newGroupObj = { id: 'grp-' + Date.now(), name: name, created_by: currentUser.id };
+      fallbackDataStore.groups.push(newGroupObj);
+      
+      groupNameInput.value = '';
+      groupMembersInput.value = '';
+      alert(`Group Room "${name}" provisioned successfully!`);
+      renderSidebarFeeds();
+    });
+
+    logoutBtn.addEventListener('click', () => {
+      alert("Mock session logged out. Reloading system view.");
+      window.location.reload();
+    });
+
+    // Run application boot loader lifecycle checking sequence
+    runCoreAppBoot();
   </script>
 </body>
 </html>

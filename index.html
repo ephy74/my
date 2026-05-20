@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Social Chat Platform Pro</title>
+  <title>Ephy Chat Pro</title>
   <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
@@ -133,7 +133,7 @@
     let activeGroupId = null;    
     let pendingAttachedFile = null;
 
-    // Local sandbox data mock store container for secure device simulation execution
+    // Local simulated datastore shared across identities
     let fallbackDataStore = {
       profiles: [
         { id: 'usr-me', username: 'ephrem74', avatar_url: '' },
@@ -144,8 +144,8 @@
         { id: 'grp-1', name: 'UI Dev Team Workspace', created_by: 'usr-me' }
       ],
       private_messages: [
-        { id: 101, sender_id: 'usr-1', receiver_id: 'usr-me', content: 'hi', file_url: null },
-        { id: 102, sender_id: 'usr-me', receiver_id: 'usr-1', content: 'hi', file_url: null }
+        { id: 101, sender_id: 'usr-1', receiver_id: 'usr-me', content: 'Hey there!', file_url: null },
+        { id: 102, sender_id: 'usr-me', receiver_id: 'usr-1', content: 'Hi, what are you working on?', file_url: null }
       ],
       group_messages: [],
       stories: [
@@ -186,9 +186,7 @@
     const filePreviewIndicator = document.getElementById('file-preview-indicator');
     const sendBtn = document.getElementById('send-btn');
 
-    // Startup configuration loop initializer
     function runCoreAppBoot() {
-      // Setup Initial Active User Profile Name State Visuals
       currentUserDisplay.textContent = currentUser.username;
       settingsUsernameInput.value = currentUser.username;
       userAvatarPlaceholder.textContent = currentUser.username[0].toUpperCase();
@@ -197,7 +195,7 @@
       loadStoriesFeed();
     }
 
-    // IDENTITY SELECTOR SWAP ENGINE (Fixes Self-Chatting Tracking loop anomalies)
+    // Persona Switcher Engine 
     identitySandboxSelector.addEventListener('change', (e) => {
       const chosenId = e.target.value;
       const targetProfile = fallbackDataStore.profiles.find(p => p.id === chosenId);
@@ -213,25 +211,17 @@
           userAvatarPlaceholder.innerHTML = currentUser.username[0].toUpperCase();
         }
 
-        // Drop current viewing track to avoid UI leak logic configurations
-        activePartnerId = null;
-        activeGroupId = null;
-        activeChatPartner.textContent = "Select a channel to get started";
-        chatBox.innerHTML = `<div class="text-center text-slate-500 mt-10 text-sm">No conversation channel is active.</div>`;
-        
-        // Disable layout inputs until a channel node selection event happens
-        messageInput.setAttribute('disabled', 'true');
-        chatFileInput.setAttribute('disabled', 'true');
-        sendBtn.setAttribute('disabled', 'true');
-        messageInput.placeholder = "Select a dynamic channel first...";
+        // Keep the chat room active, but reload history with the new identity context applied
+        if (activePartnerId || activeGroupId) {
+          loadActiveMessages();
+        }
 
         renderSidebarFeeds();
-        // Return view on switch adjustments inside responsive device views
         returnToSidebarView();
       }
     });
 
-    // RESPONSIVE SCREEN VIEW SLIDERS ENGINE
+    // Mobile View Sliders
     function transitionToChatView() {
       if (window.innerWidth < 768) {
         sidebarContainer.classList.add('-translate-x-full');
@@ -251,15 +241,14 @@
 
     mobileBackBtn.addEventListener('click', returnToSidebarView);
 
-    // SIDEBAR FEEDS RENDER ENGINE
+    // Sidebar Renders
     function renderSidebarFeeds() {
       const term = searchInput.value.trim().toLowerCase();
       usersList.innerHTML = '';
       groupsList.innerHTML = '';
 
-      // Filter out current active session profile node to avoid explicit internal loop self-chat arrays
       fallbackDataStore.profiles.forEach(p => {
-        if (p.id === currentUser.id) return;
+        if (p.id === currentUser.id) return; // Hide self from contacts list
         if (term && !p.username.toLowerCase().includes(term)) return;
 
         const btn = document.createElement('button');
@@ -290,7 +279,7 @@
 
     searchInput.addEventListener('input', renderSidebarFeeds);
 
-    // ACCOUNT META HANDLING PROFILE UPDATES
+    // Profile Setup Updates
     saveSettingsBtn.addEventListener('click', () => {
       const newUsername = settingsUsernameInput.value.trim();
       if (!newUsername) return alert("Username cannot be empty");
@@ -301,7 +290,6 @@
       const profileInStore = fallbackDataStore.profiles.find(p => p.id === currentUser.id);
       if (profileInStore) profileInStore.username = newUsername;
 
-      // Also adjust selection tool configuration nodes matching the setup
       const selectionOption = identitySandboxSelector.querySelector(`option[value="${currentUser.id}"]`);
       if (selectionOption) selectionOption.textContent = `${newUsername} ${currentUser.id === 'usr-me' ? '(You)' : ''}`;
 
@@ -324,7 +312,7 @@
       reader.readAsDataURL(file);
     });
 
-    // CHANNELS DISPATCH ENGINE
+    // Chat Selection Handlers
     function selectDirectChat(profile) {
       activeGroupId = null;
       activePartnerId = profile.id;
@@ -352,12 +340,13 @@
       messageInput.placeholder = placeholderText;
     }
 
-    // MESSAGES LOGIC FEED HANDLERS
+    // Fixed Messaging Rendering Loop Engine
     function loadActiveMessages() {
       chatBox.innerHTML = '';
       let records = [];
 
       if (activePartnerId) {
+        // Matches messages sent from current identity to partner OR from partner to current identity
         records = fallbackDataStore.private_messages.filter(m => 
           (m.sender_id === currentUser.id && m.receiver_id === activePartnerId) ||
           (m.sender_id === activePartnerId && m.receiver_id === currentUser.id)
@@ -384,7 +373,6 @@
         mediaPayload = `<img src="${msg.file_url}" class="max-w-xs max-h-48 rounded-lg mb-1 mt-1 object-cover border border-slate-600 block">`;
       }
 
-      // Identify nickname tag layout inside direct loops
       let identityTag = '';
       if (!isMe) {
         const senderProfile = fallbackDataStore.profiles.find(p => p.id === msg.sender_id);
@@ -404,7 +392,7 @@
       chatBox.scrollTop = chatBox.scrollHeight;
     }
 
-    // FORM SUBMISSIONS WITH ATTACHMENT CONFIGS
+    // Input Submission Fix
     chatFileInput.addEventListener('change', (e) => {
       pendingAttachedFile = e.target.files[0];
       if (pendingAttachedFile) {
@@ -442,11 +430,11 @@
         fallbackDataStore.group_messages.push(msgObj);
       }
 
-      if (chatBox.querySelector('.text-center')) chatBox.innerHTML = '';
-      appendMessageRow(msgObj);
+      // Live redraw the view to confirm injection updates
+      loadActiveMessages();
     });
 
-    // PHOTO STORIES PANEL CONFIGURATION 
+    // Stories Feed Handlers
     storyTriggerZone.addEventListener('click', () => { storyFileInput.click(); });
 
     function loadStoriesFeed() {
@@ -511,7 +499,6 @@
       window.location.reload();
     });
 
-    // Run application boot loader lifecycle checking sequence
     runCoreAppBoot();
   </script>
 </body>

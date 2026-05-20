@@ -76,13 +76,13 @@
     <main class="flex-1 flex flex-col justify-between bg-slate-900 h-full relative">
       
       <div class="bg-slate-800/40 border-b border-slate-700/80 p-3 flex items-center gap-3 overflow-x-auto select-none min-h-[75px] scrollbar-none">
-        <label class="flex flex-col items-center justify-center flex-shrink-0 cursor-pointer group">
+        <div id="story-trigger-zone" class="flex flex-col items-center justify-center flex-shrink-0 cursor-pointer group">
           <div class="w-11 h-11 rounded-full bg-slate-700 group-hover:bg-indigo-600 border-2 border-dashed border-indigo-500 flex items-center justify-center transition">
             <span class="text-xl font-bold text-indigo-400 group-hover:text-white">+</span>
           </div>
           <span class="text-[10px] text-slate-400 mt-1">Post Story</span>
           <input type="file" id="story-file-input" class="hidden" accept="image/*">
-        </label>
+        </div>
         <div class="h-8 w-[1px] bg-slate-700 flex-shrink-0"></div>
         <div id="stories-container" class="flex gap-3 items-center"></div>
       </div>
@@ -119,14 +119,14 @@
   </div>
 
   <script>
-   const SUPABASE_URL = "https://tkklahpgzjlektpvukbj.supabase.co";
-const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRra2xhaHBnempsZWt0cHZ1a2JqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkzMDA2NzAsImV4cCI6MjA5NDg3NjY3MH0.oIclvI5-f3p06E1B6w2B8-L7vB2K1v1Y8M9N3S5T2uE";
+    const SUPABASE_URL = "https://tkklahpgzjlektpvukbj.supabase.co";
+    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRra2xhaHBnempsZWt0cHZ1a2JqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkzMDA2NzAsImV4cCI6MjA5NDg3NjY3MH0.oIclvI5-f3p06E1B6w2B8-L7vB2K1v1Y8M9N3S5T2uE";
 
     const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
     let currentUser = null;
-    let activePartnerId = null;  // Used for Direct Messages
-    let activeGroupId = null;     // Used for Group Chats
+    let activePartnerId = null;  
+    let activeGroupId = null;     
     let isSignUpMode = false;
     let pendingAttachedFile = null;
 
@@ -151,6 +151,7 @@ const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
     const groupNameInput = document.getElementById('group-name-input');
     const createGroupBtn = document.getElementById('create-group-btn');
     
+    const storyTriggerZone = document.getElementById('story-trigger-zone');
     const storiesContainer = document.getElementById('stories-container');
     const storyFileInput = document.getElementById('story-file-input');
     
@@ -248,10 +249,11 @@ const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
       usersList.innerHTML = '';
       if (users && users.length > 0) {
         users.forEach(p => {
+          const displayUsername = p.username || p.email?.split('@')[0] || "Anonymous User";
           const btn = document.createElement('button');
           btn.className = `w-full text-left p-2 rounded-xl transition flex items-center gap-3 hover:bg-slate-700/40 cursor-pointer ${activePartnerId === p.id ? 'bg-indigo-600/30 text-indigo-300' : ''}`;
-          const imgHTML = p.avatar_url ? `<img src="${p.avatar_url}" class="w-7 h-7 rounded-full object-cover">` : `<div class="w-7 h-7 rounded-full bg-slate-600 flex items-center justify-center text-xs font-bold uppercase">${p.username[0]}</div>`;
-          btn.innerHTML = `${imgHTML}<span class="font-medium text-xs truncate">${p.username}</span>`;
+          const imgHTML = p.avatar_url ? `<img src="${p.avatar_url}" class="w-7 h-7 rounded-full object-cover">` : `<div class="w-7 h-7 rounded-full bg-slate-600 flex items-center justify-center text-xs font-bold uppercase">${displayUsername[0]}</div>`;
+          btn.innerHTML = `${imgHTML}<span class="font-medium text-xs truncate">${displayUsername}</span>`;
           btn.onclick = () => selectDirectChat(p);
           usersList.appendChild(btn);
         });
@@ -297,8 +299,9 @@ const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
     function selectDirectChat(profile) {
       activeGroupId = null;
       activePartnerId = profile.id;
-      activeChatPartner.textContent = `💬 ${profile.username}`;
-      enableInputs(`Message ${profile.username}...`);
+      const displayName = profile.username || profile.email?.split('@')[0] || "User";
+      activeChatPartner.textContent = `💬 ${displayName}`;
+      enableInputs(`Message ${displayName}...`);
       renderSidebarFeeds();
       loadActiveMessages();
     }
@@ -403,18 +406,22 @@ const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
     });
 
     // --- PHOTO STORIES FLOW ---
+    storyTriggerZone.addEventListener('click', () => {
+      storyFileInput.click();
+    });
+
     async function loadStoriesFeed() {
       const { data } = await supabaseClient.from('stories').select('*').order('id', { ascending: false });
       storiesContainer.innerHTML = '';
       if (data) {
         data.forEach(story => {
           const block = document.createElement('div');
-          block.className = 'flex flex-col items-center flex-shrink-0 cursor-pointer animate-fade-in';
+          block.className = 'flex flex-col items-center flex-shrink-0 cursor-pointer text-center';
           block.innerHTML = `
             <div class="w-12 h-12 rounded-full p-[2px] bg-gradient-to-tr from-yellow-400 to-purple-600 border border-slate-900 overflow-hidden shadow-md">
               <img src="${story.image_url}" class="w-full h-full object-cover rounded-full">
             </div>
-            <span class="text-[9px] text-slate-300 mt-1 max-w-[55px] truncate">${story.username}</span>
+            <span class="text-[9px] text-slate-300 mt-1 max-w-[55px] truncate block">${story.username}</span>
           `;
           block.onclick = () => openStoryModal(story);
           storiesContainer.appendChild(block);

@@ -47,12 +47,21 @@
         <button id="logout-btn" class="text-xs bg-slate-700 hover:bg-rose-600 px-2.5 py-1.5 rounded-lg transition flex-shrink-0 cursor-pointer">Logout</button>
       </div>
 
-      <div class="p-3 bg-slate-800/60 border-b border-slate-700 space-y-2">
+      <div class="p-3 bg-slate-800/60 border-b border-slate-700 space-y-3">
         <details class="text-xs text-slate-400 group">
-          <summary class="cursor-pointer font-semibold text-indigo-400 select-none hover:text-indigo-300">🛠️ Create Group Chat</summary>
+          <summary class="cursor-pointer font-semibold text-indigo-400 select-none hover:text-indigo-300">👥 Create Group Chat</summary>
           <div class="mt-2 space-y-2 pt-1">
             <input id="group-name-input" type="text" placeholder="Group Name..." class="w-full bg-slate-700 border border-slate-600 rounded px-2 py-1 focus:outline-none text-white text-xs">
-            <button id="create-group-btn" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-medium py-1 rounded text-xs transition cursor-pointer">Create Group</button>
+            <input id="group-members-input" type="text" placeholder="Invite usernames (comma separated)..." class="w-full bg-slate-700 border border-slate-600 rounded px-2 py-1 focus:outline-none text-white text-xs">
+            <button id="create-group-btn" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-medium py-1 rounded text-xs transition cursor-pointer">Create & Add Users</button>
+          </div>
+        </details>
+
+        <details class="text-xs text-slate-400 group">
+          <summary class="cursor-pointer font-semibold text-indigo-400 select-none hover:text-indigo-300">⚙️ Profile Settings</summary>
+          <div class="mt-2 space-y-2 pt-1">
+            <input id="settings-username-input" type="text" placeholder="Update Display Name..." class="w-full bg-slate-700 border border-slate-600 rounded px-2 py-1 focus:outline-none text-white text-xs">
+            <button id="save-settings-btn" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-medium py-1 rounded text-xs transition cursor-pointer">Save Changes</button>
           </div>
         </details>
       </div>
@@ -149,9 +158,14 @@
     const searchInput = document.getElementById('search-input');
     const usersList = document.getElementById('users-list');
     const groupsList = document.getElementById('groups-list');
+    
     const groupNameInput = document.getElementById('group-name-input');
+    const groupMembersInput = document.getElementById('group-members-input');
     const createGroupBtn = document.getElementById('create-group-btn');
     
+    const settingsUsernameInput = document.getElementById('settings-username-input');
+    const saveSettingsBtn = document.getElementById('save-settings-btn');
+
     const storyTriggerZone = document.getElementById('story-trigger-zone');
     const storiesContainer = document.getElementById('stories-container');
     const storyFileInput = document.getElementById('story-file-input');
@@ -165,13 +179,17 @@
     const sendBtn = document.getElementById('send-btn');
 
     // Global Auth Monitor State Handler
-    supabaseClient.auth.onAuthStateChange((event, session) => {
+    supabaseClient.auth.onAuthStateChange(async (event, session) => {
       if (session) {
         currentUser = session.user;
         authView.classList.add('hidden');
         appView.classList.remove('hidden');
-        currentUserDisplay.textContent = currentUser.email.split('@')[0];
         
+        // Fetch current baseline profile metrics
+        const { data: p } = await supabaseClient.from('profiles').select('username').eq('id', currentUser.id).single();
+        currentUserDisplay.textContent = p?.username || currentUser.email.split('@')[0];
+        if(p?.username) settingsUsernameInput.value = p.username;
+
         loadUserProfileAvatar();
         renderSidebarFeeds();
         loadStoriesFeed();
@@ -213,6 +231,21 @@
     });
 
     logoutBtn.addEventListener('click', () => supabaseClient.auth.signOut());
+
+    // --- SAVE INTERACTIVE PROFILE SETTINGS ---
+    saveSettingsBtn.addEventListener('click', async () => {
+      const newUsername = settingsUsernameInput.value.trim();
+      if (!newUsername) return alert("Username cannot be empty");
+
+      const { error } = await supabaseClient.from('profiles').update({ username: newUsername }).eq('id', currentUser.id);
+      if (error) {
+        alert("Error saving your username profile: " + error.message);
+      } else {
+        currentUserDisplay.textContent = newUsername;
+        alert("Settings saved successfully!");
+        renderSidebarFeeds();
+      }
+    });
 
     // --- AVATAR IMAGE UPLOAD MANAGEMENT ---
     async function loadUserProfileAvatar() {
@@ -282,7 +315,6 @@
     async function renderSidebarFeeds() {
       const term = searchInput.value.trim();
       
-      // Load and Display Users
       let userQuery = supabaseClient.from('profiles').select('*').neq('id', currentUser.id);
       if (term) userQuery = userQuery.ilike('username', `%${term}%`);
       const { data: users } = await userQuery;
@@ -313,7 +345,6 @@
         usersList.innerHTML = `<p class="text-[11px] text-slate-500 text-center py-2">No users found</p>`;
       }
 
-      // Load and Display Groups
       let groupQuery = supabaseClient.from('groups').select('*');
       if (term) groupQuery = groupQuery.ilike('name', `%${term}%`);
       const { data: groups } = await groupQuery;
@@ -334,16 +365,39 @@
 
     searchInput.addEventListener('input', renderSidebarFeeds);
 
-    // --- CREATING A NEW GROUP ---
+    // --- CREATING A NEW GROUP AND ADDING USERS ---
     createGroupBtn.addEventListener('click', async () => {
       const name = groupNameInput.value.trim();
-      if (!name) return;
+      const rawMembers = groupMembersInput.value.trim();
+      if (!name) return alert("Please specify a group room workspace label name!");
 
+      // Insert baseline group entity row
       const { data: group, error } = await supabaseClient.from('groups').insert([{ name, created_by: currentUser.id }]).select().single();
       if (error) return alert("Error setting up group room: " + error.message);
 
-      await supabaseClient.from('group_members').insert([{ group_id: group.id, user_id: currentUser.id }]);
+      // Add the creator
+      const groupInclusions = [{ group_id: group.id, user_id: currentUser.id }];
+
+      // Parse and invite users based on input names
+      if (rawMembers.length > 0) {
+        const memberNamesArr = rawMembers.split(',').map(n => n.trim()).filter(n => n.length > 0);
+        if (memberNamesArr.length > 0) {
+          const { data: profilesToInvite } = await supabaseClient.from('profiles').select('id').in('username', memberNamesArr);
+          if (profilesToInvite && profilesToInvite.length > 0) {
+            profilesToInvite.forEach(p => {
+              if (p.id !== currentUser.id) {
+                groupInclusions.push({ group_id: group.id, user_id: p.id });
+              }
+            });
+          }
+        }
+      }
+
+      await supabaseClient.from('group_members').insert(groupInclusions);
+      
       groupNameInput.value = '';
+      groupMembersInput.value = '';
+      alert(`Group "${name}" provisioned with requested members!`);
       renderSidebarFeeds();
     });
 
@@ -354,7 +408,6 @@
       const displayName = profile.username || profile.email?.split('@')[0] || "User";
       activeChatPartner.textContent = `💬 ${displayName}`;
       enableInputs(`Message ${displayName}...`);
-      renderSidebarFeeds();
       loadActiveMessages();
     }
 
@@ -363,11 +416,9 @@
       activeGroupId = group.id;
       activeChatPartner.textContent = `👥 Group: ${group.name}`;
       enableInputs(`Message group workspace...`);
-      renderSidebarFeeds();
       loadActiveMessages();
     }
 
-    // --- INPUT CONTROLLER ---
     function enableInputs(placeholderText) {
       messageInput.removeAttribute('disabled');
       chatFileInput.removeAttribute('disabled');
@@ -379,21 +430,29 @@
     async function loadActiveMessages() {
       chatBox.innerHTML = '';
       if (activePartnerId) {
-        const { data } = await supabaseClient.from('private_messages')
+        const { data, error } = await supabaseClient.from('private_messages')
           .select('*')
           .or(`and(sender_id.eq.${currentUser.id},receiver_id.eq.${activePartnerId}),and(sender_id.eq.${activePartnerId},receiver_id.eq.${currentUser.id})`)
           .order('id', { ascending: true });
-        if (data) data.forEach(appendMessageRow);
+        if (data && data.length > 0) {
+          data.forEach(appendMessageRow);
+        } else {
+          chatBox.innerHTML = `<div class="text-center text-slate-500 mt-10 text-sm">No previous direct track records found. Say Hello!</div>`;
+        }
       } else if (activeGroupId) {
-        const { data } = await supabaseClient.from('group_messages').select('*').eq('group_id', activeGroupId).order('id', { ascending: true });
-        if (data) data.forEach(appendMessageRow);
+        const { data, error } = await supabaseClient.from('group_messages').select('*').eq('group_id', activeGroupId).order('id', { ascending: true });
+        if (data && data.length > 0) {
+          data.forEach(appendMessageRow);
+        } else {
+          chatBox.innerHTML = `<div class="text-center text-slate-500 mt-10 text-sm">No workspace activities listed yet.</div>`;
+        }
       }
     }
 
     function appendMessageRow(msg) {
       const isMe = msg.sender_id === currentUser.id;
       const row = document.createElement('div');
-      row.className = `flex flex-col ${isMe ? 'items-end' : 'items-start'}`;
+      row.className = `w-full flex flex-col ${isMe ? 'items-end' : 'items-start'}`;
 
       let mediaPayload = '';
       if (msg.file_url) {
@@ -405,7 +464,7 @@
       }
 
       row.innerHTML = `
-        <div class="max-w-[70%] px-4 py-2 rounded-2xl text-xs shadow-sm ${isMe ? 'bg-indigo-600 text-white rounded-tr-none' : 'bg-slate-700 text-slate-100 rounded-tl-none'}">
+        <div class="max-w-[70%] px-4 py-2 my-1 rounded-2xl text-xs shadow-sm ${isMe ? 'bg-indigo-600 text-white rounded-tr-none' : 'bg-slate-700 text-slate-100 rounded-tl-none'}">
           ${msg.content ? `<div>${msg.content}</div>` : ''}
           ${mediaPayload}
         </div>
@@ -492,7 +551,7 @@
 
       const { data } = supabaseClient.storage.from('chat-media').getPublicUrl(path);
       
-      const currentUserNameStr = currentUser.email.split('@')[0];
+      const currentUserNameStr = currentUserDisplay.textContent;
       await supabaseClient.from('stories').insert([{
         user_id: currentUser.id, username: currentUserNameStr, image_url: data.publicUrl
       }]);
@@ -516,12 +575,17 @@
         .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'private_messages' }, payload => {
           const m = payload.new;
           if ((m.sender_id === currentUser.id && m.receiver_id === activePartnerId) || (m.sender_id === activePartnerId && m.receiver_id === currentUser.id)) {
+            // Remove fallback indicator label if showing
+            if(chatBox.querySelector('.text-center')) chatBox.innerHTML = '';
             appendMessageRow(m);
           }
         })
         .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'group_messages' }, payload => {
           const m = payload.new;
-          if (activeGroupId && m.group_id == activeGroupId) appendMessageRow(m);
+          if (activeGroupId && m.group_id == activeGroupId) {
+            if(chatBox.querySelector('.text-center')) chatBox.innerHTML = '';
+            appendMessageRow(m);
+          }
         })
         .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'stories' }, () => {
           loadStoriesFeed();

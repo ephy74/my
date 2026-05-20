@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Social Chat Platform Pro</title>
+  <title>Ephy Chat Pro</title>
   <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
@@ -41,7 +41,9 @@
           </label>
           <div class="truncate">
             <h3 id="current-user-display" class="font-bold text-indigo-400 text-sm truncate">...</h3>
-            <p class="text-[10px] text-slate-400">Click avatar to upload</p>
+            <div class="flex items-center gap-2">
+              <button id="open-settings-btn" class="text-[10px] text-slate-400 hover:text-indigo-300 transition underline cursor-pointer">Account Settings</button>
+            </div>
           </div>
         </div>
         <button id="logout-btn" class="text-xs bg-slate-700 hover:bg-rose-600 px-2.5 py-1.5 rounded-lg transition flex-shrink-0 cursor-pointer">Logout</button>
@@ -110,6 +112,22 @@
     </main>
   </div>
 
+  <div id="settings-modal" class="fixed inset-0 bg-black/70 z-50 flex items-center justify-center hidden">
+    <div class="bg-slate-800 border border-slate-700 p-6 rounded-2xl w-full max-w-sm shadow-2xl">
+      <h3 class="text-lg font-bold text-indigo-400 mb-4">Account Settings</h3>
+      <form id="settings-form" class="space-y-4">
+        <div>
+          <label class="block text-xs uppercase font-semibold text-slate-400 mb-1">Display Username</label>
+          <input id="settings-username" type="text" required class="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2 focus:outline-none focus:border-indigo-500 text-white text-sm">
+        </div>
+        <div class="flex justify-end gap-2 pt-2">
+          <button type="button" id="close-settings-btn" class="bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs font-medium px-4 py-2 rounded-lg transition cursor-pointer">Cancel</button>
+          <button type="submit" class="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-medium px-4 py-2 rounded-lg transition cursor-pointer">Save Changes</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <div id="story-modal" class="fixed inset-0 bg-black/95 z-50 flex items-center justify-center hidden" onclick="closeStoryModal()">
     <div class="relative max-w-lg w-full p-4 flex flex-col items-center">
       <p id="story-modal-user" class="text-indigo-400 font-bold mb-2 text-sm"></p>
@@ -125,10 +143,12 @@
     const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
     let currentUser = null;
+    let currentUsername = "";
     let activePartnerId = null;  
-    let activeGroupId = null;     
+    let activeGroupId = null;    
     let isSignUpMode = false;
     let pendingAttachedFile = null;
+    let onlineUsersMap = {}; 
 
     // Node Interface Connections
     const authView = document.getElementById('auth-view');
@@ -163,18 +183,29 @@
     const filePreviewIndicator = document.getElementById('file-preview-indicator');
     const sendBtn = document.getElementById('send-btn');
 
+    const openSettingsBtn = document.getElementById('open-settings-btn');
+    const closeSettingsBtn = document.getElementById('close-settings-btn');
+    const settingsModal = document.getElementById('settings-modal');
+    const settingsForm = document.getElementById('settings-form');
+    const settingsUsernameInput = document.getElementById('settings-username');
+
     // Global Auth Monitor State Handler
-    supabaseClient.auth.onAuthStateChange((event, session) => {
+    supabaseClient.auth.onAuthStateChange(async (event, session) => {
       if (session) {
         currentUser = session.user;
         authView.classList.add('hidden');
         appView.classList.remove('hidden');
-        currentUserDisplay.textContent = currentUser.email.split('@')[0];
+        
+        // Fetch baseline identity from profiles
+        const { data: profile } = await supabaseClient.from('profiles').select('username').eq('id', currentUser.id).single();
+        currentUsername = profile?.username || currentUser.email.split('@')[0];
+        currentUserDisplay.textContent = currentUsername;
         
         loadUserProfileAvatar();
         renderSidebarFeeds();
         loadStoriesFeed();
         initRealtimeSubscribers();
+        initPresenceTracker();
       } else {
         currentUser = null;
         activePartnerId = null;
@@ -212,13 +243,39 @@
 
     logoutBtn.addEventListener('click', () => supabaseClient.auth.signOut());
 
+    // --- USER SETTINGS HANDLERS ---
+    openSettingsBtn.addEventListener('click', () => {
+      settingsUsernameInput.value = currentUsername;
+      settingsModal.classList.remove('hidden');
+    });
+
+    closeSettingsBtn.addEventListener('click', () => {
+      settingsModal.classList.add('hidden');
+    });
+
+    settingsForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const updatedName = settingsUsernameInput.value.trim();
+      if (!updatedName) return;
+
+      const { error } = await supabaseClient.from('profiles').update({ username: updatedName }).eq('id', currentUser.id);
+      if (error) {
+        alert("Failed to update settings profile: " + error.message);
+      } else {
+        currentUsername = updatedName;
+        currentUserDisplay.textContent = updatedName;
+        settingsModal.classList.add('hidden');
+        renderSidebarFeeds();
+      }
+    });
+
     // --- AVATAR IMAGE UPLOAD MANAGEMENT ---
     async function loadUserProfileAvatar() {
       const { data } = await supabaseClient.from('profiles').select('avatar_url').eq('id', currentUser.id).single();
       if (data && data.avatar_url) {
         userAvatarPlaceholder.innerHTML = `<img src="${data.avatar_url}" class="w-full h-full object-cover">`;
       } else {
-        userAvatarPlaceholder.textContent = currentUser.email[0].toUpperCase();
+        userAvatarPlaceholder.textContent = currentUsername[0]?.toUpperCase() || "U";
       }
     }
 
@@ -237,6 +294,45 @@
       loadUserProfileAvatar();
     });
 
+    // --- SUPABASE PRESENCE TRACKING ---
+    function initPresenceTracker() {
+      const presenceChannel = supabaseClient.channel('presence-global', {
+        config: { presence: { key: currentUser.id } }
+      });
+
+      presenceChannel
+        .on('presence', { event: 'sync' }, () => {
+          const state = presenceChannel.presenceState();
+          onlineUsersMap = {};
+          Object.keys(state).forEach(id => {
+            onlineUsersMap[id] = true;
+          });
+          updateUsersListUIWithPresence();
+        })
+        .subscribe(async (status) => {
+          if (status === 'SUBSCRIBED') {
+            await presenceChannel.track({ online_at: new Date().toISOString() });
+          }
+        });
+    }
+
+    function updateUsersListUIWithPresence() {
+      const rows = usersList.querySelectorAll('[data-user-id]');
+      rows.forEach(row => {
+        const userId = row.getAttribute('data-user-id');
+        const badge = row.querySelector('.presence-badge');
+        if (badge) {
+          if (onlineUsersMap[userId]) {
+            badge.classList.remove('bg-slate-600');
+            badge.classList.add('bg-green-500');
+          } else {
+            badge.classList.remove('bg-green-500');
+            badge.classList.add('bg-slate-600');
+          }
+        }
+      });
+    }
+
     // --- RENDER USERS & GROUPS SIDEBAR FEEDS ---
     async function renderSidebarFeeds() {
       const term = searchInput.value.trim();
@@ -250,10 +346,21 @@
       if (users && users.length > 0) {
         users.forEach(p => {
           const displayUsername = p.username || p.email?.split('@')[0] || "Anonymous User";
+          const isOnline = onlineUsersMap[p.id] ? 'bg-green-500' : 'bg-slate-600';
+          
           const btn = document.createElement('button');
-          btn.className = `w-full text-left p-2 rounded-xl transition flex items-center gap-3 hover:bg-slate-700/40 cursor-pointer ${activePartnerId === p.id ? 'bg-indigo-600/30 text-indigo-300' : ''}`;
+          btn.setAttribute('data-user-id', p.id);
+          btn.className = `w-full text-left p-2 rounded-xl transition flex items-center justify-between hover:bg-slate-700/40 cursor-pointer ${activePartnerId === p.id ? 'bg-indigo-600/30 text-indigo-300' : ''}`;
+          
           const imgHTML = p.avatar_url ? `<img src="${p.avatar_url}" class="w-7 h-7 rounded-full object-cover">` : `<div class="w-7 h-7 rounded-full bg-slate-600 flex items-center justify-center text-xs font-bold uppercase">${displayUsername[0]}</div>`;
-          btn.innerHTML = `${imgHTML}<span class="font-medium text-xs truncate">${displayUsername}</span>`;
+          
+          btn.innerHTML = `
+            <div class="flex items-center gap-3 overflow-hidden">
+              ${imgHTML}
+              <span class="font-medium text-xs truncate">${displayUsername}</span>
+            </div>
+            <span class="presence-badge w-2 h-2 rounded-full ${isOnline} flex-shrink-0 ml-2 shadow-sm"></span>
+          `;
           btn.onclick = () => selectDirectChat(p);
           usersList.appendChild(btn);
         });
@@ -440,7 +547,7 @@
       const { data } = supabaseClient.storage.from('chat-media').getPublicUrl(path);
       
       await supabaseClient.from('stories').insert([{
-        user_id: currentUser.id, username: currentUser.email.split('@')[0], image_url: data.publicUrl
+        user_id: currentUser.id, username: currentUsername, image_url: data.publicUrl
       }]);
 
       loadStoriesFeed();
@@ -473,6 +580,9 @@
           loadStoriesFeed();
         })
         .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'groups' }, () => {
+          renderSidebarFeeds();
+        })
+        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'profiles' }, () => {
           renderSidebarFeeds();
         })
         .subscribe();
